@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steady — planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #FAF7F2;
+    --ink: #2B2A28;
+    --ink-soft: #6b6a66;
+    --sage: #4C6B52;
+    --sage-soft: #DDE7DE;
+    --clay: #C1683C;
+    --clay-soft: #F3DFD2;
+    --line: #DAD3C7;
+    --card: #FFFFFF;
+    --highlight: #EDE7DA;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    padding:0;
+  }
+  .wrap{
+    max-width:980px;
+    margin:0 auto;
+    padding:40px 24px 80px;
+  }
+  header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    margin-bottom:20px;
+    border-bottom:1px solid var(--line);
+    padding-bottom:24px;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  h1{
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    font-size:38px;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    color:var(--ink-soft);
+    font-size:14.5px;
+    max-width:38ch;
+    line-height:1.5;
+  }
+  .week-nav{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .week-nav button{
+    background:none;
+    border:1px solid var(--line);
+    border-radius:100px;
+    width:34px;
+    height:34px;
+    cursor:pointer;
+    font-size:16px;
+    color:var(--ink);
+    transition:background .15s;
+  }
+  .week-nav button:hover{ background:var(--highlight); }
+  .week-label{
+    font-family:'Source Serif 4', serif;
+    font-size:16px;
+    min-width:150px;
+    text-align:center;
+  }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:24px; }
+  .tab{
+    border:1px solid var(--line);
+    background:var(--card);
+    padding:8px 16px;
+    border-radius:100px;
+    font-size:13px;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    color:var(--ink-soft);
+    transition:all .15s;
+  }
+  .tab.active{ background:var(--ink); border-color:var(--ink); color:var(--bg); }
+  .tab:hover:not(.active){ background:var(--highlight); }
+
+  .overview{
+    display:flex;
+    gap:28px;
+    align-items:center;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:22px 26px;
+    margin-bottom:28px;
+    flex-wrap:wrap;
+  }
+  .overview .big{ font-family:'Source Serif 4', serif; font-size:44px; line-height:1; color:var(--sage); }
+  .overview .big-label{ font-size:13px; color:var(--ink-soft); margin-top:4px; }
+  .overview .bar-track{ flex:1; min-width:180px; height:8px; background:var(--highlight); border-radius:100px; overflow:hidden; }
+  .overview .bar-fill{ height:100%; background:var(--sage); border-radius:100px; transition:width .3s ease; }
+  .overview .streak{ font-size:13px; color:var(--ink-soft); white-space:nowrap; }
+  .overview .streak b{ color:var(--clay); font-weight:600; }
+
+  .days{ display:grid; grid-template-columns:repeat(7, 1fr); gap:12px; }
+  @media (max-width:820px){ .days{ grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); } }
+  .day{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    min-height:280px;
+  }
+  .day.today{ border-color:var(--sage); box-shadow:0 0 0 1px var(--sage); }
+  .day-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; cursor:pointer; }
+  .day-head:hover .day-name{ color:var(--clay); }
+  .day-name{ font-family:'Source Serif 4', serif; font-size:15px; transition:color .15s; }
+  .day-date{ font-size:11px; color:var(--ink-soft); }
+  .day-progress{ font-size:11px; color:var(--sage); font-weight:600; margin-bottom:10px; }
+  .mood-row{ display:flex; gap:5px; margin-bottom:12px; }
+  .mood-dot{
+    width:20px; height:20px; border-radius:50%;
+    border:1px solid var(--line); background:var(--bg);
+    cursor:pointer; font-size:0; flex-shrink:0;
+  }
+  .mood-dot.active{ background:var(--clay); border-color:var(--clay); }
+  .tasks{ flex:1; display:flex; flex-direction:column; gap:6px; margin-bottom:10px; }
+  .task{ display:flex; align-items:flex-start; gap:7px; font-size:12.5px; line-height:1.35; }
+  .task input[type=checkbox]{ margin-top:2px; accent-color:var(--sage); cursor:pointer; flex-shrink:0; }
+  .task span{ flex:1; word-break:break-word; }
+  .task.done span{ text-decoration:line-through; color:var(--ink-soft); }
+  .task .del{
+    cursor:pointer; color:var(--ink-soft); font-size:13px;
+    opacity:0; transition:opacity .15s; flex-shrink:0;
+  }
+  .task:hover .del{ opacity:1; }
+  .task.habit-task{ border-left:2px solid var(--sage); padding-left:6px; margin-left:-8px; }
+  .task.habit-task.quit-type{ border-left-color:var(--clay); }
+  .habit-tag{
+    font-size:8.5px; letter-spacing:.02em; color:var(--ink-soft);
+    background:var(--highlight); padding:2px 6px; border-radius:100px;
+    flex-shrink:0; align-self:center;
+  }
+  .add-task{ display:flex; gap:4px; }
+  .add-task input{
+    flex:1; border:1px solid var(--line); border-radius:7px;
+    padding:6px 8px; font-size:12px; font-family:'Inter',sans-serif;
+    background:var(--bg); color:var(--ink);
+  }
+  .add-task input:focus{ outline:none; border-color:var(--sage); }
+  .add-task button{
+    border:none; background:var(--sage); color:white; border-radius:7px;
+    width:26px; font-size:15px; cursor:pointer; flex-shrink:0;
+  }
+  .footer-note{ margin-top:30px; font-size:12.5px; color:var(--ink-soft); text-align:center; }
+  .loading{ text-align:center; padding:80px 0; color:var(--ink-soft); font-size:14px; }
+
+  /* Day view */
+  .day-view-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:32px; }
+  .day-view-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:14px; }
+  .day-view-title{ font-family:'Source Serif 4', serif; font-size:26px; }
+  .day-picker{ display:flex; align-items:center; gap:10px; }
+  .day-picker input[type=date]{
+    border:1px solid var(--line); border-radius:8px; padding:6px 10px;
+    font-family:'Inter',sans-serif; font-size:13px; background:var(--bg); color:var(--ink);
+  }
+  .ring-row{ display:flex; align-items:center; gap:24px; margin-bottom:26px; flex-wrap:wrap; }
+  .ring{
+    width:96px; height:96px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Source Serif 4', serif; font-size:22px; flex-shrink:0;
+  }
+  .ring-meta{ font-size:13px; color:var(--ink-soft); line-height:1.6; }
+  .ring-meta b{ color:var(--ink); font-weight:600; }
+  .day-view-tasks{ display:flex; flex-direction:column; gap:9px; max-width:560px; }
+  .day-view-tasks .task{ font-size:14px; }
+  .day-view-mood{ margin-top:22px; }
+  .day-view-mood .mood-row .mood-dot{ width:26px; height:26px; }
+  .section-label{ font-size:12px; color:var(--ink-soft); margin-bottom:10px; }
+
+  /* Habits view */
+  .habits-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:26px; overflow-x:auto; }
+  .habits-add{ display:flex; gap:8px; margin-bottom:22px; max-width:460px; flex-wrap:wrap; }
+  .habits-add input[type=text]{
+    flex:1; min-width:160px; border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    font-family:'Inter',sans-serif; font-size:13px; background:var(--bg); color:var(--ink);
+  }
+  .habits-add select{
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px;
+    font-family:'Inter',sans-serif; font-size:13px; background:var(--bg); color:var(--ink);
+  }
+  .habits-add input:focus, .habits-add select:focus{ outline:none; border-color:var(--sage); }
+  .habits-add button{
+    border:none; background:var(--sage); color:white; border-radius:8px;
+    padding:0 16px; font-size:13px; cursor:pointer;
+  }
+  table.habit-grid{ border-collapse:collapse; width:100%; min-width:640px; }
+  table.habit-grid th, table.habit-grid td{ padding:6px 4px; text-align:center; font-size:11px; color:var(--ink-soft); }
+  table.habit-grid th.name-col, table.habit-grid td.name-col{
+    text-align:left; font-size:13px; color:var(--ink); padding-right:14px;
+    white-space:nowrap; font-family:'Source Serif 4', serif;
+  }
+  .habit-type-tag{ font-size:9.5px; color:var(--ink-soft); font-family:'Inter',sans-serif; margin-left:6px; }
+  table.habit-grid td.name-col .del-habit{
+    color:var(--ink-soft); cursor:pointer; font-size:11px; margin-left:8px;
+    opacity:0; transition:opacity .15s; font-family:'Inter',sans-serif;
+  }
+  table.habit-grid tr:hover td.name-col .del-habit{ opacity:1; }
+  .habit-dot{ width:20px; height:20px; border-radius:6px; border:1px solid var(--line); background:var(--bg); cursor:pointer; margin:0 auto; }
+  .habit-dot.done{ background:var(--sage); border-color:var(--sage); }
+  .habit-dot.done.quit{ background:var(--clay); border-color:var(--clay); }
+  .habit-dot.today-col{ box-shadow:0 0 0 1px var(--clay); }
+  .habit-streak{ font-size:11px; color:var(--clay); font-weight:600; }
+  th.today-col-head{ color:var(--clay); }
+  .habits-empty{ color:var(--ink-soft); font-size:13px; padding:20px 0; }
+
+  /* Celebration */
+  .toast{
+    position:fixed; top:20px; right:20px; background:var(--ink); color:var(--bg);
+    padding:14px 18px; border-radius:10px; font-size:13px;
+    box-shadow:0 6px 20px rgba(0,0,0,.18); z-index:9999; max-width:280px;
+    animation: toastIn .25s ease, toastOut .25s ease 2.55s forwards;
+  }
+  @keyframes toastIn{ from{opacity:0; transform:translateY(-8px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes toastOut{ to{opacity:0; transform:translateY(-8px);} }
+  .confetti-piece{ position:fixed; top:-10px; width:7px; height:7px; z-index:9998; pointer-events:none; animation: confettiFall 1.15s ease-in forwards; }
+  @keyframes confettiFall{ to{ transform: translateY(105vh) rotate(var(--rot)); opacity:0; } }
+
+  /* Auth */
+  .auth-wrap{
+    max-width:380px;
+    margin:80px auto;
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:36px;
+  }
+  .auth-wrap h1{ font-size:30px; margin-bottom:6px; }
+  .auth-sub{ color:var(--ink-soft); font-size:13.5px; margin-bottom:26px; line-height:1.5; }
+  .auth-field{ margin-bottom:14px; }
+  .auth-field label{ display:block; font-size:12px; color:var(--ink-soft); margin-bottom:5px; }
+  .auth-field input{
+    width:100%; border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font-family:'Inter',sans-serif; font-size:14px;
+    background:var(--bg); color:var(--ink);
+  }
+  .auth-field input:focus{ outline:none; border-color:var(--sage); }
+  .auth-submit{
+    width:100%; border:none; background:var(--sage); color:white;
+    border-radius:8px; padding:11px; font-size:14px; cursor:pointer;
+    font-family:'Inter',sans-serif; font-weight:500; margin-top:6px;
+  }
+  .auth-toggle{
+    text-align:center; margin-top:16px; font-size:12.5px; color:var(--ink-soft);
+  }
+  .auth-toggle a{ color:var(--sage); cursor:pointer; text-decoration:underline; }
+  .auth-msg{
+    font-size:12.5px; padding:10px 12px; border-radius:8px; margin-bottom:16px;
+  }
+  .auth-msg.error{ background:var(--clay-soft); color:#8a3f1a; }
+  .auth-msg.success{ background:var(--sage-soft); color:#2f4633; }
+  .user-bar{
+    display:flex; align-items:center; gap:10px; font-size:12.5px; color:var(--ink-soft);
+  }
+  .user-bar .logout{
+    cursor:pointer; color:var(--ink-soft); text-decoration:underline;
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <div class="loading">loading your data…</div>
+</div>
+
+<script>
+const DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const MILESTONES = [3,7,14,21,30,50,75,100,150,200,365];
+
+function getMonday(d){
+  const date = new Date(d);
+  const day = date.getDay();
+  const diff = date.getDate() - day;
+  return new Date(date.setDate(diff));
+}
+function fmt(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function parseDateKey(k){
+  const [y,m,d] = k.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function weekLabel(monday){
+  const end = new Date(monday);
+  end.setDate(end.getDate()+6);
+  const opts = {month:'short', day:'numeric'};
+  return `${monday.toLocaleDateString('en-US',opts)} – ${end.toLocaleDateString('en-US',opts)}`;
+}
+function daysInMonth(year, monthIdx){ return new Date(year, monthIdx+1, 0).getDate(); }
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ====== SUPABASE CONFIG — replace these two lines with your own project's values ======
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ========================================================================================
+
+const sb = (SUPABASE_URL.startsWith('http'))
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+let currentView = 'week';
+let currentMonday = getMonday(new Date());
+let weekData = {};
+let selectedDayKey = fmt(new Date());
+let currentMonthDate = new Date();
+let habitsData = { habits: [], checks: {} };
+
+let persistOk = true;
+let memoryCache = {};
+let currentUser = null; // { id, email }
+let authMode = 'signin'; // 'signin' | 'signup'
+let authMessage = null; // {type:'error'|'success', text}
+
+async function storageGet(key){
+  if(!sb || !currentUser){ return memoryCache[key] || null; }
+  try{
+    const { data, error } = await sb
+      .from('user_data')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+    if(error) throw error;
+    persistOk = true;
+    return data ? data.value : null;
+  }catch(e){
+    persistOk = false;
+    return memoryCache[key] || null;
+  }
+}
+async function storageSet(key, obj){
+  memoryCache[key] = obj;
+  if(!sb || !currentUser){ persistOk = false; return; }
+  try{
+    const { error } = await sb
+      .from('user_data')
+      .upsert({ user_id: currentUser.id, key, value: obj, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
+    if(error) throw error;
+    persistOk = true;
+  }catch(e){
+    persistOk = false;
+  }
+}
+
+async function loadWeek(){
+  const key = 'week:' + fmt(currentMonday);
+  const loaded = await storageGet(key);
+  weekData = loaded || {};
+  for(let i=0;i<7;i++){
+    const d = new Date(currentMonday);
+    d.setDate(d.getDate()+i);
+    const k = fmt(d);
+    if(!weekData[k]) weekData[k] = {tasks:[], mood:0};
+  }
+  render();
+}
+async function saveWeek(){
+  await storageSet('week:' + fmt(currentMonday), weekData);
+  render();
+}
+async function ensureDayLoaded(dateKey){
+  const d = parseDateKey(dateKey);
+  const mon = getMonday(d);
+  if(fmt(mon) === fmt(currentMonday)) return;
+  const key = 'week:' + fmt(mon);
+  const loaded = await storageGet(key);
+  currentMonday = mon;
+  weekData = loaded || {};
+  if(!weekData[dateKey]) weekData[dateKey] = {tasks:[], mood:0};
+}
+
+async function loadHabitsGlobal(){
+  const loaded = await storageGet('habits-global');
+  habitsData = loaded || { habits: [], checks: {} };
+}
+async function saveHabits(){
+  await storageSet('habits-global', habitsData);
+  render();
+}
+
+function addTask(dateKey, text){
+  if(!text.trim()) return;
+  weekData[dateKey].tasks.push({text: text.trim(), done:false});
+  saveWeek();
+}
+function toggleTask(dateKey, idx){
+  weekData[dateKey].tasks[idx].done = !weekData[dateKey].tasks[idx].done;
+  saveWeek();
+}
+function deleteTask(dateKey, idx){
+  weekData[dateKey].tasks.splice(idx,1);
+  saveWeek();
+}
+function setMood(dateKey, level){
+  weekData[dateKey].mood = (weekData[dateKey].mood === level) ? 0 : level;
+  saveWeek();
+}
+function shiftWeek(delta){
+  const d = new Date(currentMonday);
+  d.setDate(d.getDate() + delta*7);
+  currentMonday = d;
+  loadWeek();
+}
+
+function habitsForDate(dateKey){
+  return habitsData.habits.filter(h => !h.createdAt || dateKey >= h.createdAt);
+}
+function dayTaskCounts(dateKey){
+  const day = weekData[dateKey] || {tasks:[]};
+  const manualTotal = day.tasks.length;
+  const manualDone = day.tasks.filter(t=>t.done).length;
+  const habits = habitsForDate(dateKey);
+  const habitTotal = habits.length;
+  const habitDone = habits.filter(h => habitsData.checks[dateKey] && habitsData.checks[dateKey][h.id]).length;
+  return { total: manualTotal+habitTotal, done: manualDone+habitDone };
+}
+function weekStats(){
+  let total=0, done=0;
+  for(let i=0;i<7;i++){
+    const d = new Date(currentMonday); d.setDate(d.getDate()+i);
+    const c = dayTaskCounts(fmt(d));
+    total+=c.total; done+=c.done;
+  }
+  return {total, done, pct: total ? Math.round((done/total)*100) : 0};
+}
+function currentStreak(){
+  const todayKey = fmt(new Date());
+  let streak = 0;
+  for(let i=6;i>=0;i--){
+    const d = new Date(currentMonday); d.setDate(d.getDate()+i);
+    const k = fmt(d);
+    if(k > todayKey) continue;
+    const c = dayTaskCounts(k);
+    if(c.total>0 && c.done===c.total) streak++;
+    else if(c.total>0) break;
+  }
+  return streak;
+}
+
+async function openDay(dateKey){
+  await ensureDayLoaded(dateKey);
+  selectedDayKey = dateKey;
+  currentView = 'day';
+  render();
+}
+async function changeSelectedDay(dateKey){
+  if(!dateKey) return;
+  await ensureDayLoaded(dateKey);
+  selectedDayKey = dateKey;
+  render();
+}
+
+function addHabit(name, type){
+  if(!name.trim()) return;
+  const id = 'h' + Date.now();
+  habitsData.habits.push({id, name: name.trim(), type: type || 'build', createdAt: fmt(new Date())});
+  saveHabits();
+}
+function deleteHabit(id){
+  habitsData.habits = habitsData.habits.filter(h=>h.id!==id);
+  Object.values(habitsData.checks).forEach(dayChecks=>{ delete dayChecks[id]; });
+  saveHabits();
+}
+async function toggleHabit(dateKey, habitId){
+  if(!habitsData.checks[dateKey]) habitsData.checks[dateKey] = {};
+  const wasChecked = !!habitsData.checks[dateKey][habitId];
+  habitsData.checks[dateKey][habitId] = !wasChecked;
+  const nowChecked = habitsData.checks[dateKey][habitId];
+  await saveHabits();
+  if(nowChecked && !wasChecked){
+    const habit = habitsData.habits.find(h=>h.id===habitId);
+    if(habit) celebrate(habit, habitStreak(habitId));
+  }
+}
+function shiftMonth(delta){
+  const d = new Date(currentMonthDate);
+  d.setMonth(d.getMonth()+delta);
+  currentMonthDate = d;
+  render();
+}
+function habitStreak(habitId){
+  let streak = 0;
+  let d = new Date();
+  while(true){
+    const k = fmt(d);
+    if(habitsData.checks[k] && habitsData.checks[k][habitId]){
+      streak++;
+      d.setDate(d.getDate()-1);
+    } else break;
+  }
+  return streak;
+}
+
+function celebrationMessage(habit, streak){
+  const isMilestone = MILESTONES.includes(streak);
+  if(isMilestone){
+    return `🏆 ${streak} days ${habit.type==='quit' ? 'clean' : 'strong'} on “${habit.name}”`;
+  }
+  if(streak<=1){
+    return habit.type==='quit'
+      ? `Good — stayed clean on “${habit.name}” today.`
+      : `Nice — “${habit.name}” done for today.`;
+  }
+  return `🔥 ${streak}-day streak on “${habit.name}”`;
+}
+function spawnConfetti(){
+  const colors = ['#4C6B52','#C1683C','#DDE7DE','#F3DFD2','#2B2A28'];
+  for(let i=0;i<18;i++){
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    const leftBase = Math.max(window.innerWidth - 160, 20);
+    el.style.left = (leftBase + Math.random()*140) + 'px';
+    el.style.background = colors[Math.floor(Math.random()*colors.length)];
+    el.style.setProperty('--rot', (Math.random()*360)+'deg');
+    el.style.animationDelay = (Math.random()*0.15)+'s';
+    el.style.borderRadius = Math.random()>0.5 ? '50%' : '2px';
+    document.body.appendChild(el);
+    setTimeout(()=>el.remove(), 1500);
+  }
+}
+function celebrate(habit, streak){
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = celebrationMessage(habit, streak);
+  document.body.appendChild(toast);
+  setTimeout(()=>toast.remove(), 2900);
+  spawnConfetti();
+}
+
+function switchView(v){
+  currentView = v;
+  render();
+}
+
+function renderTabs(){
+  return `
+    <div class="tabs">
+      <div class="tab ${currentView==='week'?'active':''}" onclick="switchView('week')">Week</div>
+      <div class="tab ${currentView==='day'?'active':''}" onclick="switchView('day')">Day</div>
+      <div class="tab ${currentView==='habits'?'active':''}" onclick="switchView('habits')">Habits</div>
+    </div>
+  `;
+}
+
+function habitTaskRowHtml(dateKey, habit){
+  const checked = !!(habitsData.checks[dateKey] && habitsData.checks[dateKey][habit.id]);
+  const label = habit.type==='quit' ? `Stay clean: ${escapeHtml(habit.name)}` : escapeHtml(habit.name);
+  return `
+    <div class="task habit-task ${habit.type==='quit'?'quit-type':''} ${checked?'done':''}">
+      <input type="checkbox" ${checked?'checked':''} onchange="toggleHabit('${dateKey}', '${habit.id}')">
+      <span>${label}</span>
+      <span class="habit-tag">habit</span>
+    </div>
+  `;
+}
+
+function renderWeekView(){
+  const stats = weekStats();
+  const streak = currentStreak();
+  const todayKey = fmt(new Date());
+  let daysHtml = '';
+  for(let i=0;i<7;i++){
+    const d = new Date(currentMonday);
+    d.setDate(d.getDate()+i);
+    const k = fmt(d);
+    const day = weekData[k] || {tasks:[], mood:0};
+    const counts = dayTaskCounts(k);
+    const isToday = k === todayKey;
+
+    const habitRows = habitsForDate(k).map(h => habitTaskRowHtml(k, h)).join('');
+    const taskRows = day.tasks.map((t, idx) => `
+      <div class="task ${t.done ? 'done':''}">
+        <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
+        <span>${escapeHtml(t.text)}</span>
+        <span class="del" onclick="deleteTask('${k}', ${idx})">✕</span>
+      </div>
+    `).join('');
+
+    let moodHtml = '';
+    for(let m=1;m<=5;m++){
+      moodHtml += `<div class="mood-dot ${day.mood>=m?'active':''}" onclick="setMood('${k}', ${m})"></div>`;
+    }
+
+    daysHtml += `
+      <div class="day ${isToday?'today':''}">
+        <div class="day-head" onclick="openDay('${k}')" title="Open day view">
+          <div class="day-name">${DAY_NAMES[d.getDay()].slice(0,3)}</div>
+          <div class="day-date">${d.getDate()}</div>
+        </div>
+        <div class="day-progress">${counts.total ? `${counts.done}/${counts.total} done` : 'nothing planned yet'}</div>
+        <div class="mood-row">${moodHtml}</div>
+        <div class="tasks">${habitRows}${taskRows}</div>
+        <div class="add-task">
+          <input type="text" placeholder="add a task" id="input-${k}" onkeydown="if(event.key==='Enter'){addTask('${k}', this.value); this.value='';}">
+          <button onclick="const el=document.getElementById('input-${k}'); addTask('${k}', el.value); el.value='';">+</button>
+        </div>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="week-nav" style="justify-content:flex-end; margin-bottom:20px;">
+      <button onclick="shiftWeek(-1)">←</button>
+      <div class="week-label">${weekLabel(currentMonday)}</div>
+      <button onclick="shiftWeek(1)">→</button>
+    </div>
+    <div class="overview">
+      <div>
+        <div class="big">${stats.pct}%</div>
+        <div class="big-label">of this week's tasks + habits done</div>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${stats.pct}%"></div></div>
+      <div class="streak">${stats.done}/${stats.total} · <b>${streak}-day</b> clean streak</div>
+    </div>
+    <div class="days">${daysHtml}</div>
+  `;
+}
+
+function renderDayView(){
+  const k = selectedDayKey;
+  const day = weekData[k] || {tasks:[], mood:0};
+  const counts = dayTaskCounts(k);
+  const pct = counts.total ? Math.round((counts.done/counts.total)*100) : 0;
+  const d = parseDateKey(k);
+  const label = d.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'});
+
+  let ringColor = pct === 100 && counts.total>0 ? 'var(--sage)' : 'var(--clay)';
+  const ringBg = `conic-gradient(${ringColor} ${pct*3.6}deg, var(--highlight) 0deg)`;
+
+  const habitRows = habitsForDate(k).map(h => habitTaskRowHtml(k, h)).join('');
+  const taskRows = day.tasks.map((t, idx) => `
+    <div class="task ${t.done ? 'done':''}">
+      <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
+      <span>${escapeHtml(t.text)}</span>
+      <span class="del" onclick="deleteTask('${k}', ${idx})">✕</span>
+    </div>
+  `).join('');
+  const tasksHtml = (habitRows + taskRows) || `<div style="color:var(--ink-soft); font-size:13px;">Nothing planned yet — add what you want to get done today.</div>`;
+
+  let moodHtml = '';
+  for(let m=1;m<=5;m++){
+    moodHtml += `<div class="mood-dot ${day.mood>=m?'active':''}" onclick="setMood('${k}', ${m})"></div>`;
+  }
+
+  return `
+    <div class="day-view-card">
+      <div class="day-view-head">
+        <div class="day-view-title">${label}</div>
+        <div class="day-picker"><input type="date" value="${k}" onchange="changeSelectedDay(this.value)"></div>
+      </div>
+      <div class="ring-row">
+        <div class="ring" style="background:${ringBg}">${pct}%</div>
+        <div class="ring-meta">
+          <b>${counts.done} of ${counts.total}</b> planned<br>
+          ${counts.total===0 ? 'Add a few things below to get started.' : (pct===100 ? 'Everything on the list is done.' : `${counts.total-counts.done} left to go.`)}
+        </div>
+      </div>
+      <div class="section-label">Today's tasks &amp; habits</div>
+      <div class="day-view-tasks">${tasksHtml}</div>
+      <div class="add-task" style="max-width:320px; margin-top:10px;">
+        <input type="text" placeholder="add a task" id="dayinput-${k}" onkeydown="if(event.key==='Enter'){addTask('${k}', this.value); this.value='';}">
+        <button onclick="const el=document.getElementById('dayinput-${k}'); addTask('${k}', el.value); el.value='';">+</button>
+      </div>
+      <div class="day-view-mood">
+        <div class="section-label">How the day felt</div>
+        <div class="mood-row">${moodHtml}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderHabitsView(){
+  const y = currentMonthDate.getFullYear();
+  const m = currentMonthDate.getMonth();
+  const numDays = daysInMonth(y, m);
+  const todayKey = fmt(new Date());
+  const monthLabel = currentMonthDate.toLocaleDateString('en-US', {month:'long', year:'numeric'});
+
+  let headCells = '';
+  for(let dnum=1; dnum<=numDays; dnum++){
+    const dk = fmt(new Date(y, m, dnum));
+    headCells += `<th class="${dk===todayKey?'today-col-head':''}">${dnum}</th>`;
+  }
+
+  let rows = '';
+  if(habitsData.habits.length === 0){
+    rows = `<tr><td colspan="${numDays+2}" class="habits-empty">No habits yet — add one above. It'll start showing up automatically in your daily checklist too.</td></tr>`;
+  } else {
+    habitsData.habits.forEach(h=>{
+      let cells = '';
+      for(let dnum=1; dnum<=numDays; dnum++){
+        const dk = fmt(new Date(y, m, dnum));
+        const beforeCreation = h.createdAt && dk < h.createdAt;
+        const checked = !!(habitsData.checks[dk] && habitsData.checks[dk][h.id]);
+        cells += beforeCreation
+          ? `<td></td>`
+          : `<td><div class="habit-dot ${checked?'done':''} ${h.type==='quit'?'quit':''} ${dk===todayKey?'today-col':''}" onclick="toggleHabit('${dk}', '${h.id}')"></div></td>`;
+      }
+      const streak = habitStreak(h.id);
+      rows += `
+        <tr>
+          <td class="name-col">${escapeHtml(h.name)}<span class="habit-type-tag">${h.type==='quit'?'(quitting)':'(building)'}</span><span class="del-habit" onclick="deleteHabit('${h.id}')">remove</span></td>
+          ${cells}
+          <td><span class="habit-streak">${streak>0 ? streak+'d' : ''}</span></td>
+        </tr>
+      `;
+    });
+  }
+
+  return `
+    <div class="week-nav" style="justify-content:flex-end; margin-bottom:20px;">
+      <button onclick="shiftMonth(-1)">←</button>
+      <div class="week-label">${monthLabel}</div>
+      <button onclick="shiftMonth(1)">→</button>
+    </div>
+    <div class="habits-card">
+      <div class="habits-add">
+        <input type="text" placeholder="new habit, e.g. read 10 pages" id="new-habit-input" onkeydown="if(event.key==='Enter'){const t=document.getElementById('new-habit-type'); addHabit(this.value, t.value); this.value='';}">
+        <select id="new-habit-type">
+          <option value="build">Build (do it)</option>
+          <option value="quit">Quit (avoid it)</option>
+        </select>
+        <button onclick="const el=document.getElementById('new-habit-input'); const t=document.getElementById('new-habit-type'); addHabit(el.value, t.value); el.value='';">Add habit</button>
+      </div>
+      <table class="habit-grid">
+        <thead><tr><th class="name-col"></th>${headCells}<th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
+function render(){
+  const app = document.getElementById('app');
+  let body = '';
+  if(currentView==='week') body = renderWeekView();
+  else if(currentView==='day') body = renderDayView();
+  else if(currentView==='habits') body = renderHabitsView();
+
+  app.innerHTML = `
+    <header>
+      <div>
+        <h1>Steady</h1>
+        <div class="sub">One day, one week, one habit at a time.</div>
+      </div>
+      ${userBarHtml()}
+    </header>
+    ${renderTabs()}
+    ${body}
+    <div class="footer-note">${persistOk
+      ? 'Your data is saved to your account and follows you across devices.'
+      : "⚠ Couldn't reach the database right now — your changes are kept for this visit only until the connection is back."}</div>
+  `;
+}
+
+// ---- auth ----
+function renderAuth(){
+  const app = document.getElementById('app');
+  const isSignup = authMode === 'signup';
+  app.innerHTML = `
+    <div class="auth-wrap">
+      <h1>Steady</h1>
+      <div class="auth-sub">${isSignup ? 'Create your account — your tasks and habits will be yours alone.' : 'Sign in to pick up where you left off.'}</div>
+      ${authMessage ? `<div class="auth-msg ${authMessage.type}">${escapeHtml(authMessage.text)}</div>` : ''}
+      <div class="auth-field">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="you@example.com">
+      </div>
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}">
+      </div>
+      <button class="auth-submit" onclick="submitAuth()">${isSignup ? 'Sign up' : 'Sign in'}</button>
+      <div class="auth-toggle">
+        ${isSignup
+          ? `Already have an account? <a onclick="authMode='signin'; authMessage=null; render();">Sign in</a>`
+          : `New here? <a onclick="authMode='signup'; authMessage=null; render();">Create an account</a>`}
+      </div>
+    </div>
+  `;
+}
+
+async function submitAuth(){
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if(!email || !password){
+    authMessage = {type:'error', text:'Enter both an email and a password.'};
+    render();
+    return;
+  }
+  if(!sb){
+    authMessage = {type:'error', text:'This app is not connected to a database yet — the SUPABASE_URL/SUPABASE_ANON_KEY at the top of the file still need to be filled in.'};
+    render();
+    return;
+  }
+  try{
+    if(authMode === 'signup'){
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if(error) throw error;
+      if(data.session){
+        currentUser = data.user;
+        await startApp();
+      } else {
+        authMessage = {type:'success', text:'Account created — check your email to confirm, then sign in.'};
+        authMode = 'signin';
+        render();
+      }
+    } else {
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      currentUser = data.user;
+      await startApp();
+    }
+  }catch(e){
+    authMessage = {type:'error', text: e.message || 'Something went wrong — try again.'};
+    render();
+  }
+}
+
+async function logout(){
+  if(sb) await sb.auth.signOut();
+  currentUser = null;
+  weekData = {};
+  habitsData = { habits: [], checks: {} };
+  currentView = 'week';
+  render();
+}
+
+function userBarHtml(){
+  if(!currentUser) return '';
+  return `<div class="user-bar">${escapeHtml(currentUser.email || '')} <span class="logout" onclick="logout()">Log out</span></div>`;
+}
+
+async function startApp(){
+  authMessage = null;
+  await loadHabitsGlobal();
+  await loadWeek();
+}
+
+async function init(){
+  if(!sb){
+    render(); // will show a config warning via renderAuth's error path when they try to submit
+    renderAuth();
+    return;
+  }
+  const { data } = await sb.auth.getSession();
+  if(data.session){
+    currentUser = data.session.user;
+    await startApp();
+  } else {
+    renderAuth();
+  }
+  sb.auth.onAuthStateChange((event, session) => {
+    if(event === 'SIGNED_OUT'){
+      currentUser = null;
+      renderAuth();
+    }
+  });
+}
+init();
+</script>
+</body>
+</html>
