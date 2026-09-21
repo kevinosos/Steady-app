@@ -394,7 +394,12 @@ async function ensureDayLoaded(dateKey){
   const loaded = await storageGet(key);
   currentMonday = mon;
   weekData = loaded || {};
-  if(!weekData[dateKey]) weekData[dateKey] = {tasks:[], mood:0};
+  for(let i=0;i<7;i++){
+    const dd = new Date(mon);
+    dd.setDate(dd.getDate()+i);
+    const k = fmt(dd);
+    if(!weekData[k]) weekData[k] = {tasks:[], mood:0};
+  }
 }
 
 async function loadHabitsGlobal(){
@@ -408,18 +413,22 @@ async function saveHabits(){
 
 function addTask(dateKey, text){
   if(!text.trim()) return;
+  if(!weekData[dateKey]) weekData[dateKey] = {tasks:[], mood:0};
   weekData[dateKey].tasks.push({text: text.trim(), done:false});
   saveWeek();
 }
 function toggleTask(dateKey, idx){
+  if(!weekData[dateKey] || !weekData[dateKey].tasks[idx]) return;
   weekData[dateKey].tasks[idx].done = !weekData[dateKey].tasks[idx].done;
   saveWeek();
 }
 function deleteTask(dateKey, idx){
+  if(!weekData[dateKey]) return;
   weekData[dateKey].tasks.splice(idx,1);
   saveWeek();
 }
 function setMood(dateKey, level){
+  if(!weekData[dateKey]) weekData[dateKey] = {tasks:[], mood:0};
   weekData[dateKey].mood = (weekData[dateKey].mood === level) ? 0 : level;
   saveWeek();
 }
