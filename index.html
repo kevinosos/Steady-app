@@ -168,6 +168,17 @@
   .footer-note{ margin-top:30px; font-size:12.5px; color:var(--ink-soft); text-align:center; }
   .loading{ text-align:center; padding:80px 0; color:var(--ink-soft); font-size:14px; }
 
+  /* Error banner */
+  .error-banner{
+    background:var(--clay-soft); color:#8a3f1a;
+    border:1px solid var(--clay); border-radius:10px;
+    padding:12px 14px; font-size:12.5px; line-height:1.5;
+    margin-bottom:20px; word-break:break-word;
+    display:flex; gap:12px; align-items:flex-start; justify-content:space-between;
+  }
+  .error-banner b{ font-weight:600; }
+  .error-banner .dismiss{ cursor:pointer; text-decoration:underline; white-space:nowrap; flex-shrink:0; }
+
   /* Day view */
   .day-view-card{ background:var(--card); border:1px solid var(--line); border-radius:16px; padding:32px; }
   .day-view-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:14px; }
@@ -263,12 +274,14 @@
     border-radius:8px; padding:11px; font-size:14px; cursor:pointer;
     font-family:'Inter',sans-serif; font-weight:500; margin-top:6px;
   }
+  .auth-submit:disabled{ opacity:.6; cursor:default; }
   .auth-toggle{
     text-align:center; margin-top:16px; font-size:12.5px; color:var(--ink-soft);
   }
   .auth-toggle a{ color:var(--sage); cursor:pointer; text-decoration:underline; }
   .auth-msg{
     font-size:12.5px; padding:10px 12px; border-radius:8px; margin-bottom:16px;
+    line-height:1.5; word-break:break-word;
   }
   .auth-msg.error{ background:var(--clay-soft); color:#8a3f1a; }
   .auth-msg.success{ background:var(--sage-soft); color:#2f4633; }
@@ -319,12 +332,14 @@ function escapeHtml(str){
 }
 
 // ====== SUPABASE CONFIG — replace these two lines with your own project's values ======
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://zjjkltyyawkozcgluuyb.supabase.co/rest/v1/';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamtsdHl5YXdrb3pjZ2x1dXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTg5MjMsImV4cCI6MjEwNDQzNDkyM30.PMhXyHM91kdw5dGytjvSWTSPcrkd6PS1h23Uv22G7No';
 // ========================================================================================
 
 const sb = (SUPABASE_URL.startsWith('http'))
-  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    })
   : null;
 
 let currentView = 'week';
@@ -339,6 +354,40 @@ let memoryCache = {};
 let currentUser = null; // { id, email }
 let authMode = 'signin'; // 'signin' | 'signup'
 let authMessage = null; // {type:'error'|'success', text}
+let authEmail = '';
+let lastError = null;   // string shown in the on-screen error banner
+let loggingOut = false;
+
+// ---- error reporting: nothing fails silently any more ----
+function describeErr(e){
+  if(!e) return 'Unknown error';
+  const parts = [];
+  if(e.code) parts.push(`[${e.code}]`);
+  if(e.status) parts.push(`(HTTP ${e.status})`);
+  parts.push(e.message || String(e));
+  if(e.details) parts.push(e.details);
+  if(e.hint) parts.push('Hint: ' + e.hint);
+  return parts.join(' ');
+}
+function reportError(where, e){
+  console.error('[Steady] ' + where + ' failed:', e);
+  lastError = where + ' failed: ' + describeErr(e);
+}
+function dismissError(){
+  lastError = null;
+  render();
+}
+function localStorageWorks(){
+  try{
+    localStorage.setItem('__steady_test', '1');
+    localStorage.removeItem('__steady_test');
+    return true;
+  }catch(e){ return false; }
+}
+const STORAGE_OK = localStorageWorks();
+if(!STORAGE_OK){
+  console.warn('[Steady] localStorage is blocked in this context, so your sign-in cannot survive a page refresh.');
+}
 
 async function storageGet(key){
   if(!sb || !currentUser){ return memoryCache[key] || null; }
@@ -346,6 +395,7 @@ async function storageGet(key){
     const { data, error } = await sb
       .from('user_data')
       .select('value')
+      .eq('user_id', currentUser.id)
       .eq('key', key)
       .maybeSingle();
     if(error) throw error;
@@ -353,21 +403,40 @@ async function storageGet(key){
     return data ? data.value : null;
   }catch(e){
     persistOk = false;
+    reportError('Loading "' + key + '"', e);
     return memoryCache[key] || null;
   }
 }
 async function storageSet(key, obj){
   memoryCache[key] = obj;
-  if(!sb || !currentUser){ persistOk = false; return; }
+  if(!sb || !currentUser){
+    persistOk = false;
+    reportError('Saving "' + key + '"', { message: 'You are not signed in, so nothing can be written to the database.' });
+    return;
+  }
   try{
     const { error } = await sb
       .from('user_data')
-      .upsert({ user_id: currentUser.id, key, value: obj, updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
+      .upsert(
+        { user_id: currentUser.id, key, value: obj, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id,key' }
+      );
     if(error) throw error;
     persistOk = true;
+    lastError = null;
   }catch(e){
     persistOk = false;
+    reportError('Saving "' + key + '"', e);
   }
+}
+
+// Render immediately so the UI never waits on the network, then persist,
+// then re-render only if the save status changed.
+async function persist(key, obj){
+  render();
+  const before = persistOk + '|' + lastError;
+  await storageSet(key, obj);
+  if(before !== persistOk + '|' + lastError) render();
 }
 
 async function loadWeek(){
@@ -383,8 +452,7 @@ async function loadWeek(){
   render();
 }
 async function saveWeek(){
-  await storageSet('week:' + fmt(currentMonday), weekData);
-  render();
+  await persist('week:' + fmt(currentMonday), weekData);
 }
 async function ensureDayLoaded(dateKey){
   const d = parseDateKey(dateKey);
@@ -407,8 +475,7 @@ async function loadHabitsGlobal(){
   habitsData = loaded || { habits: [], checks: {} };
 }
 async function saveHabits(){
-  await storageSet('habits-global', habitsData);
-  render();
+  await persist('habits-global', habitsData);
 }
 
 function addTask(dateKey, text){
@@ -503,11 +570,12 @@ async function toggleHabit(dateKey, habitId){
   const wasChecked = !!habitsData.checks[dateKey][habitId];
   habitsData.checks[dateKey][habitId] = !wasChecked;
   const nowChecked = habitsData.checks[dateKey][habitId];
-  await saveHabits();
+  const saving = saveHabits(); // renders right away, saves in the background
   if(nowChecked && !wasChecked){
     const habit = habitsData.habits.find(h=>h.id===habitId);
     if(habit) celebrate(habit, habitStreak(habitId));
   }
+  await saving;
 }
 function shiftMonth(delta){
   const d = new Date(currentMonthDate);
@@ -767,7 +835,21 @@ function renderHabitsView(){
   `;
 }
 
+function errorBannerHtml(){
+  const notes = [];
+  if(lastError) notes.push(`<b>${escapeHtml(lastError)}</b>`);
+  if(!STORAGE_OK) notes.push('This browser context blocks local storage, so you will be signed out on every refresh. Open the file directly or host it on your own site.');
+  if(!notes.length) return '';
+  return `<div class="error-banner"><div>${notes.join('<br>')}</div>${lastError ? '<span class="dismiss" onclick="dismissError()">dismiss</span>' : ''}</div>`;
+}
+
+// Single entry point: whenever nobody is signed in, always show the auth screen.
 function render(){
+  if(!currentUser){ renderAuth(); return; }
+  renderApp();
+}
+
+function renderApp(){
   const app = document.getElementById('app');
   let body = '';
   if(currentView==='week') body = renderWeekView();
@@ -782,11 +864,12 @@ function render(){
       </div>
       ${userBarHtml()}
     </header>
+    ${errorBannerHtml()}
     ${renderTabs()}
     ${body}
     <div class="footer-note">${persistOk
       ? 'Your data is saved to your account and follows you across devices.'
-      : "⚠ Couldn't reach the database right now — your changes are kept for this visit only until the connection is back."}</div>
+      : "⚠ Your last change did not reach the database — see the message above. It is kept for this visit only."}</div>
   `;
 }
 
@@ -794,42 +877,55 @@ function render(){
 function renderAuth(){
   const app = document.getElementById('app');
   const isSignup = authMode === 'signup';
+  const storageNote = STORAGE_OK ? '' : `<div class="auth-msg error">This browser context blocks local storage, so you will be signed out on every refresh. Open the file directly or host it on your own site.</div>`;
   app.innerHTML = `
     <div class="auth-wrap">
       <h1>Steady</h1>
       <div class="auth-sub">${isSignup ? 'Create your account — your tasks and habits will be yours alone.' : 'Sign in to pick up where you left off.'}</div>
       ${authMessage ? `<div class="auth-msg ${authMessage.type}">${escapeHtml(authMessage.text)}</div>` : ''}
+      ${storageNote}
       <div class="auth-field">
         <label>Email</label>
-        <input type="email" id="auth-email" placeholder="you@example.com">
+        <input type="email" id="auth-email" placeholder="you@example.com" value="${escapeHtml(authEmail)}" onkeydown="if(event.key==='Enter'){document.getElementById('auth-password').focus();}">
       </div>
       <div class="auth-field">
         <label>Password</label>
-        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}">
+        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}" onkeydown="if(event.key==='Enter'){submitAuth();}">
       </div>
       <button class="auth-submit" onclick="submitAuth()">${isSignup ? 'Sign up' : 'Sign in'}</button>
       <div class="auth-toggle">
         ${isSignup
-          ? `Already have an account? <a onclick="authMode='signin'; authMessage=null; render();">Sign in</a>`
-          : `New here? <a onclick="authMode='signup'; authMessage=null; render();">Create an account</a>`}
+          ? `Already have an account? <a onclick="switchAuthMode('signin')">Sign in</a>`
+          : `New here? <a onclick="switchAuthMode('signup')">Create an account</a>`}
       </div>
     </div>
   `;
 }
 
+function switchAuthMode(mode){
+  const el = document.getElementById('auth-email');
+  if(el) authEmail = el.value;
+  authMode = mode;
+  authMessage = null;
+  render();
+}
+
 async function submitAuth(){
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
+  authEmail = email;
   if(!email || !password){
     authMessage = {type:'error', text:'Enter both an email and a password.'};
     render();
     return;
   }
   if(!sb){
-    authMessage = {type:'error', text:'This app is not connected to a database yet — the SUPABASE_URL/SUPABASE_ANON_KEY at the top of the file still need to be filled in.'};
+    authMessage = {type:'error', text:'This app is not connected to a database yet — the SUPABASE_URL and SUPABASE_ANON_KEY near the top of the file still need to be filled in.'};
     render();
     return;
   }
+  const btn = document.querySelector('.auth-submit');
+  if(btn){ btn.disabled = true; btn.textContent = 'Working…'; }
   try{
     if(authMode === 'signup'){
       const { data, error } = await sb.auth.signUp({ email, password });
@@ -849,17 +945,27 @@ async function submitAuth(){
       await startApp();
     }
   }catch(e){
-    authMessage = {type:'error', text: e.message || 'Something went wrong — try again.'};
+    console.error('[Steady] ' + (authMode === 'signup' ? 'Sign up' : 'Sign in') + ' failed:', e);
+    authMessage = {type:'error', text: describeErr(e)};
     render();
   }
 }
 
 async function logout(){
-  if(sb) await sb.auth.signOut();
+  loggingOut = true;
+  try{
+    if(sb) await sb.auth.signOut();
+  }catch(e){
+    console.error('[Steady] Sign out failed:', e);
+  }
+  loggingOut = false;
   currentUser = null;
   weekData = {};
   habitsData = { habits: [], checks: {} };
+  memoryCache = {};
   currentView = 'week';
+  lastError = null;
+  authMessage = null;
   render();
 }
 
@@ -870,29 +976,48 @@ function userBarHtml(){
 
 async function startApp(){
   authMessage = null;
+  lastError = null;
+  console.log('[Steady] signed in as', currentUser && currentUser.email);
   await loadHabitsGlobal();
   await loadWeek();
 }
 
 async function init(){
   if(!sb){
-    render(); // will show a config warning via renderAuth's error path when they try to submit
-    renderAuth();
+    authMessage = {type:'error', text:'This app is not connected to a database yet — fill in SUPABASE_URL and SUPABASE_ANON_KEY near the top of the file.'};
+    render();
     return;
   }
-  const { data } = await sb.auth.getSession();
-  if(data.session){
-    currentUser = data.session.user;
-    await startApp();
-  } else {
-    renderAuth();
-  }
+
+  // Listen first so we can see exactly why a session ends.
   sb.auth.onAuthStateChange((event, session) => {
-    if(event === 'SIGNED_OUT'){
+    console.log('[Steady] auth event:', event, session ? 'session present' : 'no session');
+    if(event === 'SIGNED_OUT' && currentUser){
       currentUser = null;
-      renderAuth();
+      weekData = {};
+      habitsData = { habits: [], checks: {} };
+      if(!loggingOut){
+        authMessage = {type:'error', text:'Your session ended (it may have expired, or the project was paused). Please sign in again.'};
+      }
+      render();
     }
   });
+
+  try{
+    const { data, error } = await sb.auth.getSession();
+    if(error) throw error;
+    console.log('[Steady] restored session:', data.session ? 'yes' : 'none');
+    if(data.session){
+      currentUser = data.session.user;
+      await startApp();
+    } else {
+      render();
+    }
+  }catch(e){
+    console.error('[Steady] Restoring session failed:', e);
+    authMessage = {type:'error', text:'Could not restore your session: ' + describeErr(e)};
+    render();
+  }
 }
 init();
 </script>
