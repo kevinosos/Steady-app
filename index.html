@@ -126,6 +126,7 @@
     display:flex;
     flex-direction:column;
     min-height:280px;
+    min-width:0;
   }
   .day.today{ border-color:var(--sage); box-shadow:0 0 0 1px var(--sage); }
   .day-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px; cursor:pointer; }
@@ -159,7 +160,7 @@
   }
   .add-task{ display:flex; gap:4px; }
   .add-task input{
-    flex:1; border:1px solid var(--line); border-radius:7px;
+    flex:1; min-width:0; border:1px solid var(--line); border-radius:7px;
     padding:6px 8px; font-size:12px; font-family:'Inter',sans-serif;
     background:var(--bg); color:var(--ink);
   }
@@ -278,6 +279,8 @@
     font-family:'Inter',sans-serif; font-weight:500; margin-top:6px;
   }
   .auth-submit:disabled{ opacity:.6; cursor:default; }
+  .auth-forgot{ text-align:right; margin:-4px 0 4px; font-size:12.5px; }
+  .auth-forgot a{ color:var(--ink-soft); cursor:pointer; text-decoration:underline; }
   .auth-toggle{
     text-align:center; margin-top:16px; font-size:12.5px; color:var(--ink-soft);
   }
@@ -336,8 +339,14 @@ function escapeHtml(str){
 
 // ====== SUPABASE CONFIG — replace these two lines with your own project's values ======
 const SUPABASE_URL = 'https://zjjkltyyawkozcgluuyb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamtsdHl5YXdrb3pjZ2x1dXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTg5MjMsImV4cCI6MjEwNDQzNDkyM30.PMhXyHM91kdw5dGytjvSWTSPcrkd6PS1h23Uv22G7No';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
 // ========================================================================================
+
+// Read the URL hash now, before supabase-js processes and clears it.
+const HASH_PARAMS = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+const RECOVERY_LINK = HASH_PARAMS.get('type') === 'recovery';
+const LINK_ERROR_CODE = HASH_PARAMS.get('error_code');
+const LINK_ERROR_DESC = HASH_PARAMS.get('error_description');
 
 const sb = (SUPABASE_URL.startsWith('http'))
   ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -360,6 +369,7 @@ let authMessage = null; // {type:'error'|'success', text}
 let authEmail = '';
 let lastError = null;   // string shown in the on-screen error banner
 let loggingOut = false;
+let recoveryMode = RECOVERY_LINK; // true while the user is choosing a new password
 
 // ---- error reporting: nothing fails silently any more ----
 function describeErr(e){
@@ -848,6 +858,7 @@ function errorBannerHtml(){
 
 // Single entry point: whenever nobody is signed in, always show the auth screen.
 function render(){
+  if(recoveryMode){ renderRecovery(); return; }
   if(!currentUser){ renderAuth(); return; }
   renderApp();
 }
@@ -880,29 +891,88 @@ function renderApp(){
 function renderAuth(){
   const app = document.getElementById('app');
   const isSignup = authMode === 'signup';
+  const isForgot = authMode === 'forgot';
   const storageNote = STORAGE_OK ? '' : `<div class="auth-msg error">This browser context blocks local storage, so you will be signed out on every refresh. Open the file directly or host it on your own site.</div>`;
+  const subText = isForgot
+    ? "Enter your email and we'll send you a link to choose a new password."
+    : (isSignup ? 'Create your account — your tasks and habits will be yours alone.' : 'Sign in to pick up where you left off.');
+  const emailEnter = isForgot ? 'submitAuth();' : "document.getElementById('auth-password').focus();";
+  const passwordField = isForgot ? '' : `
+      <div class="auth-field">
+        <label>Password</label>
+        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}" onkeydown="if(event.key==='Enter'){submitAuth();}">
+      </div>`;
+  const forgotLink = (!isSignup && !isForgot) ? `<div class="auth-forgot"><a onclick="switchAuthMode('forgot')">Forgot password?</a></div>` : '';
+  const btnLabel = isForgot ? 'Send reset link' : (isSignup ? 'Sign up' : 'Sign in');
+  const toggle = isForgot
+    ? `<a onclick="switchAuthMode('signin')">Back to sign in</a>`
+    : (isSignup
+        ? `Already have an account? <a onclick="switchAuthMode('signin')">Sign in</a>`
+        : `New here? <a onclick="switchAuthMode('signup')">Create an account</a>`);
   app.innerHTML = `
     <div class="auth-wrap">
       <h1>Steady</h1>
-      <div class="auth-sub">${isSignup ? 'Create your account — your tasks and habits will be yours alone.' : 'Sign in to pick up where you left off.'}</div>
+      <div class="auth-sub">${subText}</div>
       ${authMessage ? `<div class="auth-msg ${authMessage.type}">${escapeHtml(authMessage.text)}</div>` : ''}
       ${storageNote}
       <div class="auth-field">
         <label>Email</label>
-        <input type="email" id="auth-email" placeholder="you@example.com" value="${escapeHtml(authEmail)}" onkeydown="if(event.key==='Enter'){document.getElementById('auth-password').focus();}">
+        <input type="email" id="auth-email" placeholder="you@example.com" value="${escapeHtml(authEmail)}" onkeydown="if(event.key==='Enter'){${emailEnter}}">
       </div>
-      <div class="auth-field">
-        <label>Password</label>
-        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}" onkeydown="if(event.key==='Enter'){submitAuth();}">
-      </div>
-      <button class="auth-submit" onclick="submitAuth()">${isSignup ? 'Sign up' : 'Sign in'}</button>
-      <div class="auth-toggle">
-        ${isSignup
-          ? `Already have an account? <a onclick="switchAuthMode('signin')">Sign in</a>`
-          : `New here? <a onclick="switchAuthMode('signup')">Create an account</a>`}
-      </div>
+      ${passwordField}
+      ${forgotLink}
+      <button class="auth-submit" onclick="submitAuth()">${btnLabel}</button>
+      <div class="auth-toggle">${toggle}</div>
     </div>
   `;
+}
+
+// Shown after the user clicks the link in the reset email.
+function renderRecovery(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="auth-wrap">
+      <h1>Steady</h1>
+      <div class="auth-sub">Choose a new password for your account.</div>
+      ${authMessage ? `<div class="auth-msg ${authMessage.type}">${escapeHtml(authMessage.text)}</div>` : ''}
+      <div class="auth-field">
+        <label>New password</label>
+        <input type="password" id="new-password" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter'){document.getElementById('new-password2').focus();}">
+      </div>
+      <div class="auth-field">
+        <label>Confirm new password</label>
+        <input type="password" id="new-password2" onkeydown="if(event.key==='Enter'){submitNewPassword();}">
+      </div>
+      <button class="auth-submit" onclick="submitNewPassword()">Save new password</button>
+    </div>
+  `;
+}
+
+async function submitNewPassword(){
+  const pw = document.getElementById('new-password').value;
+  const pw2 = document.getElementById('new-password2').value;
+  if(pw.length < 6){
+    authMessage = {type:'error', text:'Your password needs at least 6 characters.'};
+    render(); return;
+  }
+  if(pw !== pw2){
+    authMessage = {type:'error', text:'The two passwords do not match.'};
+    render(); return;
+  }
+  const btn = document.querySelector('.auth-submit');
+  if(btn){ btn.disabled = true; btn.textContent = 'Saving…'; }
+  try{
+    const { data, error } = await sb.auth.updateUser({ password: pw });
+    if(error) throw error;
+    recoveryMode = false;
+    currentUser = data.user;
+    history.replaceState(null, '', window.location.pathname);
+    await startApp();
+  }catch(e){
+    console.error('[Steady] Setting new password failed:', e);
+    authMessage = {type:'error', text: describeErr(e)};
+    render();
+  }
 }
 
 function switchAuthMode(mode){
@@ -915,22 +985,33 @@ function switchAuthMode(mode){
 
 async function submitAuth(){
   const email = document.getElementById('auth-email').value.trim();
-  const password = document.getElementById('auth-password').value;
+  const pwEl = document.getElementById('auth-password');
+  const password = pwEl ? pwEl.value : '';
   authEmail = email;
-  if(!email || !password){
+  if(authMode === 'forgot'){
+    if(!email){
+      authMessage = {type:'error', text:'Enter your email address.'};
+      render(); return;
+    }
+  } else if(!email || !password){
     authMessage = {type:'error', text:'Enter both an email and a password.'};
-    render();
-    return;
+    render(); return;
   }
   if(!sb){
     authMessage = {type:'error', text:'This app is not connected to a database yet — the SUPABASE_URL and SUPABASE_ANON_KEY near the top of the file still need to be filled in.'};
-    render();
-    return;
+    render(); return;
   }
   const btn = document.querySelector('.auth-submit');
   if(btn){ btn.disabled = true; btn.textContent = 'Working…'; }
   try{
-    if(authMode === 'signup'){
+    if(authMode === 'forgot'){
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+      if(error) throw error;
+      authMessage = {type:'success', text:'If an account exists for that email, a reset link is on its way. Check your spam folder too.'};
+      authMode = 'signin';
+      render();
+    } else if(authMode === 'signup'){
       const { data, error } = await sb.auth.signUp({ email, password });
       if(error) throw error;
       if(data.session){
@@ -948,7 +1029,8 @@ async function submitAuth(){
       await startApp();
     }
   }catch(e){
-    console.error('[Steady] ' + (authMode === 'signup' ? 'Sign up' : 'Sign in') + ' failed:', e);
+    const what = authMode === 'signup' ? 'Sign up' : (authMode === 'forgot' ? 'Password reset' : 'Sign in');
+    console.error('[Steady] ' + what + ' failed:', e);
     authMessage = {type:'error', text: describeErr(e)};
     render();
   }
@@ -995,6 +1077,11 @@ async function init(){
   // Listen first so we can see exactly why a session ends.
   sb.auth.onAuthStateChange((event, session) => {
     console.log('[Steady] auth event:', event, session ? 'session present' : 'no session');
+    if(event === 'PASSWORD_RECOVERY'){
+      recoveryMode = true;
+      render();
+      return;
+    }
     if(event === 'SIGNED_OUT' && currentUser){
       currentUser = null;
       weekData = {};
@@ -1005,6 +1092,18 @@ async function init(){
       render();
     }
   });
+
+  // Opened from a "reset password" email: show the new-password form first.
+  if(recoveryMode){ render(); return; }
+
+  // Expired / already-used reset link
+  if(LINK_ERROR_CODE || LINK_ERROR_DESC){
+    authMessage = {type:'error', text: LINK_ERROR_CODE === 'otp_expired'
+      ? 'That reset link has expired or was already used. Request a new one below.'
+      : (LINK_ERROR_DESC || 'That link is not valid.')};
+    authMode = 'forgot';
+    history.replaceState(null, '', window.location.pathname);
+  }
 
   try{
     const { data, error } = await sb.auth.getSession();
