@@ -84,8 +84,7 @@
     text-align:center;
   }
 
-  .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:24px; }
-  .tabs{ display:flex; gap:6px; }
+  .tabs{ display:flex; gap:6px; margin-bottom:24px; }
   .tab{
     border:1px solid var(--line);
     background:var(--card);
@@ -150,7 +149,7 @@
   .task > .task-text, .task > .task-main{ flex:1; min-width:0; }
   .task-main{ display:flex; flex-direction:column; gap:2px; }
   .task.done .task-text{ text-decoration:line-through; color:var(--ink-soft); }
-  .task .habit-tag, .task .del, .task .prio-dot{ flex:0 0 auto; }
+  .task .habit-tag, .task .del{ flex:0 0 auto; }
   .task .del{
     cursor:pointer; color:var(--ink-soft); font-size:13px;
     opacity:0; transition:opacity .15s; flex-shrink:0;
@@ -174,41 +173,54 @@
     border:none; background:var(--sage); color:white; border-radius:7px;
     width:26px; font-size:15px; cursor:pointer; flex-shrink:0;
   }
-  /* sorting + task details */
-  .sortbar{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft); }
-  .seg{
-    border:1px solid var(--line); background:var(--card); padding:6px 12px;
-    border-radius:100px; font-size:12px; cursor:pointer; color:var(--ink-soft);
-    font-family:'Inter',sans-serif; transition:all .15s;
-  }
-  .seg:hover:not(.active){ background:var(--highlight); }
-  .seg.active{ background:var(--sage); border-color:var(--sage); color:#fff; }
+  /* manual reordering + task details */
   .time-badge{ font-size:10.5px; color:var(--ink-soft); }
-  .prio-dot{
-    width:11px; height:11px; border-radius:50%; margin-top:3px;
-    border:1.5px solid var(--line); cursor:pointer; background:transparent;
-  }
-  .prio-dot.p1{ background:#9DB5A1; border-color:#9DB5A1; }
-  .prio-dot.p2{ background:#D9A441; border-color:#D9A441; }
-  .prio-dot.p3{ background:var(--clay); border-color:var(--clay); }
   .task.detailed{ padding:10px 0; border-bottom:1px solid var(--highlight); }
   .task.detailed .del{ opacity:.55; }
   .task-controls{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px; }
-  .task-controls input[type=time], .task-controls select, .add-task select{
+  .task-controls input[type=time]{
     border:1px solid var(--line); border-radius:7px; padding:5px 7px; font-size:12px;
     font-family:'Inter',sans-serif; background:var(--bg); color:var(--ink);
   }
+  .order-ctrl{ display:flex; flex-direction:column; gap:2px; flex:0 0 auto; }
   .mv{
     border:1px solid var(--line); background:var(--bg); color:var(--ink-soft);
-    border-radius:7px; width:28px; height:28px; font-size:11px; cursor:pointer;
+    border-radius:5px; width:22px; height:18px; font-size:9px; line-height:1; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; padding:0;
   }
   .mv:hover:not(:disabled){ background:var(--highlight); }
-  .mv:disabled{ opacity:.35; cursor:default; }
-  .sort-note{ font-size:12px; color:var(--ink-soft); margin-top:10px; }
-  .add-task.day-add{ max-width:560px; margin-top:12px; flex-wrap:wrap; gap:6px; }
+  .mv:disabled{ opacity:.3; cursor:default; }
+  .task.detailed .order-ctrl{ flex-direction:row; }
+  .task.detailed .mv{ width:28px; height:26px; font-size:11px; }
+  .add-task.day-add{ max-width:420px; margin-top:12px; flex-wrap:wrap; gap:6px; }
   .add-task.day-add input[type=text]{ flex:1 1 180px; padding:8px 10px; font-size:13px; }
-  .add-task.day-add input[type=time], .add-task.day-add select{ flex:0 0 auto; padding:7px 8px; }
+  .add-task.day-add input[type=time]{ flex:0 0 auto; padding:7px 8px; }
   .add-task.day-add button{ width:34px; height:34px; }
+  .remind-toggle{
+    border:1px solid var(--line); background:var(--bg); color:var(--ink-soft);
+    border-radius:7px; width:30px; height:30px; font-size:14px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .remind-toggle.on{ background:var(--clay); border-color:var(--clay); color:#fff; }
+  .remind-toggle:disabled{ opacity:.35; cursor:default; }
+  .habit-remind{
+    border:1px solid var(--line); border-radius:6px; padding:2px 4px; font-size:10.5px;
+    font-family:'Inter',sans-serif; background:var(--bg); color:var(--ink-soft); margin-left:8px;
+    vertical-align:middle;
+  }
+  .push-bar{
+    display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-soft);
+    margin-bottom:16px; flex-wrap:wrap;
+  }
+  .push-bar button{
+    border:1px solid var(--line); background:var(--card); color:var(--ink);
+    border-radius:100px; padding:6px 14px; font-size:12px; cursor:pointer;
+    font-family:'Inter',sans-serif;
+  }
+  .push-bar button:hover{ background:var(--highlight); }
+  .push-bar button:disabled{ opacity:.5; cursor:default; }
+  .push-dot{ width:7px; height:7px; border-radius:50%; background:var(--line); flex-shrink:0; }
+  .push-dot.on{ background:var(--sage); }
   @media (hover:none){ .task .del{ opacity:.55; } }
   /* sticky note */
   .sticky-toggle{
@@ -408,7 +420,10 @@ function escapeHtml(str){
 
 // ====== SUPABASE CONFIG — replace these two lines with your own project's values ======
 const SUPABASE_URL = 'https://zjjkltyyawkozcgluuyb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamtsdHl5YXdrb3pjZ2x1dXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTg5MjMsImV4cCI6MjEwNDQzNDkyM30.PMhXyHM91kdw5dGytjvSWTSPcrkd6PS1h23Uv22G7No';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+// ====== VAPID public key — paste the value send-reminders/DEPLOY.md gave you. Safe to be public. ======
+const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY';
+// ========================================================================================
 // ========================================================================================
 
 // Read the URL hash now, before supabase-js processes and clears it.
@@ -440,6 +455,9 @@ let lastError = null;   // string shown in the on-screen error banner
 let loggingOut = false;
 let recoveryMode = RECOVERY_LINK; // true while the user is choosing a new password
 let stickyNote = '';
+let pushSupported = ('serviceWorker' in navigator) && ('PushManager' in window) && VAPID_PUBLIC_KEY.length > 10 && VAPID_PUBLIC_KEY !== 'YOUR_VAPID_PUBLIC_KEY';
+let pushSubscribed = false;   // this device currently has an active push subscription
+let pushBusy = false;         // a subscribe/unsubscribe call is in flight
 let stickyOpen = false;
 let stickySaveTimer = null;
 let stickySavedState = 'idle'; // 'idle' | 'saving' | 'saved'
@@ -567,54 +585,43 @@ async function saveHabits(){
 function addTask(dateKey, text, opts){
   if(!text.trim()) return;
   if(!weekData[dateKey]) weekData[dateKey] = {tasks:[], mood:0};
-  const task = {text: text.trim(), done:false};
+  const task = {id: 't' + Date.now() + Math.random().toString(36).slice(2,7), text: text.trim(), done:false};
   if(opts && opts.time) task.time = opts.time;
-  if(opts && opts.priority) task.priority = opts.priority;
   weekData[dateKey].tasks.push(task);
   saveWeek();
 }
 function addFromDayView(dateKey){
   const text = document.getElementById('dayinput-' + dateKey).value;
   const time = document.getElementById('daytime-' + dateKey).value;
-  const priority = Number(document.getElementById('dayprio-' + dateKey).value) || 0;
-  addTask(dateKey, text, { time, priority });
+  addTask(dateKey, text, { time });
 }
-
-// ---- ordering / organizing ----
-function setSortMode(mode){
-  habitsData.sortMode = mode;
+// A task needs a time before it can have a reminder — a push with no "when" makes no sense.
+function toggleTaskRemind(dateKey, idx){
+  const t = weekData[dateKey] && weekData[dateKey].tasks[idx];
+  if(!t) return;
+  if(!t.time){
+    lastError = 'Set a time on this task first — reminders need a time to fire at.';
+    render();
+    return;
+  }
+  t.remind = !t.remind;
+  saveWeek();
+}
+function setHabitReminder(habitId, value){
+  const h = habitsData.habits.find(x => x.id === habitId);
+  if(!h) return;
+  if(value) h.reminderTime = value; else delete h.reminderTime;
   saveHabits();
 }
-function orderedTasks(dateKey){
-  const tasks = (weekData[dateKey] && weekData[dateKey].tasks) || [];
-  const list = tasks.map((t, idx) => ({ t, idx }));
-  const mode = habitsData.sortMode || 'manual';
-  const timeKey = t => t.time || '99:99';
-  if(mode === 'time'){
-    list.sort((a, b) => timeKey(a.t).localeCompare(timeKey(b.t)) || a.idx - b.idx);
-  } else if(mode === 'priority'){
-    list.sort((a, b) =>
-      (b.t.priority || 0) - (a.t.priority || 0) ||
-      timeKey(a.t).localeCompare(timeKey(b.t)) ||
-      a.idx - b.idx);
-  }
-  return list;
-}
+
+// ---- manual ordering: you set the order yourself with the ▲▼ arrows ----
 function setTaskField(dateKey, idx, field, value){
   const t = weekData[dateKey] && weekData[dateKey].tasks[idx];
   if(!t) return;
-  if(field === 'priority'){
-    const n = Number(value) || 0;
-    if(n) t.priority = n; else delete t.priority;
-  } else if(field === 'time'){
-    if(value) t.time = value; else delete t.time;
+  if(field === 'time'){
+    if(value) t.time = value; else { delete t.time; delete t.remind; }
   }
   saveWeek();
-}
-function cyclePriority(dateKey, idx){
-  const t = weekData[dateKey] && weekData[dateKey].tasks[idx];
-  if(!t) return;
-  setTaskField(dateKey, idx, 'priority', ((t.priority || 0) + 1) % 4);
 }
 function moveTask(dateKey, idx, delta){
   const arr = weekData[dateKey] && weekData[dateKey].tasks;
@@ -624,12 +631,24 @@ function moveTask(dateKey, idx, delta){
   [arr[idx], arr[j]] = [arr[j], arr[idx]];
   saveWeek();
 }
+// Habits live in one shared list (habitsData.habits), so moving one here
+// reorders it everywhere — every day shows habits in the same order.
+function moveHabit(dateKey, habitId, delta){
+  const visible = habitsForDate(dateKey);
+  const pos = visible.findIndex(h => h.id === habitId);
+  if(pos === -1) return;
+  const targetPos = pos + delta;
+  if(targetPos < 0 || targetPos >= visible.length) return;
+  const aId = visible[pos].id, bId = visible[targetPos].id;
+  const ai = habitsData.habits.findIndex(h => h.id === aId);
+  const bi = habitsData.habits.findIndex(h => h.id === bId);
+  if(ai === -1 || bi === -1) return;
+  [habitsData.habits[ai], habitsData.habits[bi]] = [habitsData.habits[bi], habitsData.habits[ai]];
+  saveHabits();
+}
 function fmtTime(hhmm){
   const [h, m] = hhmm.split(':').map(Number);
   return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
-}
-function prioTitle(p){
-  return ['No priority','Low priority','Medium priority','High priority'][p || 0] + ' (tap to change)';
 }
 function toggleTask(dateKey, idx){
   if(!weekData[dateKey] || !weekData[dateKey].tasks[idx]) return;
@@ -784,35 +803,39 @@ function switchView(v){
   render();
 }
 
-function renderSortBar(){
-  if(currentView === 'habits') return '';
-  const mode = habitsData.sortMode || 'manual';
-  const opts = [['manual','Manual'], ['time','Time'], ['priority','Priority']];
-  return `<div class="sortbar"><span>Sort tasks</span>${opts.map(([v, l]) =>
-    `<button class="seg ${mode===v?'active':''}" onclick="setSortMode('${v}')">${l}</button>`).join('')}</div>`;
-}
-
 function renderTabs(){
   return `
-    <div class="toolbar">
-      <div class="tabs">
-        <div class="tab ${currentView==='week'?'active':''}" onclick="switchView('week')">Week</div>
-        <div class="tab ${currentView==='day'?'active':''}" onclick="switchView('day')">Day</div>
-        <div class="tab ${currentView==='habits'?'active':''}" onclick="switchView('habits')">Habits</div>
-      </div>
-      ${renderSortBar()}
+    <div class="tabs">
+      <div class="tab ${currentView==='week'?'active':''}" onclick="switchView('week')">Week</div>
+      <div class="tab ${currentView==='day'?'active':''}" onclick="switchView('day')">Day</div>
+      <div class="tab ${currentView==='habits'?'active':''}" onclick="switchView('habits')">Habits</div>
     </div>
   `;
 }
 
-function habitTaskRowHtml(dateKey, habit, compact){
+function orderArrowsHtml(onUp, onDown, isFirst, isLast){
+  return `
+    <span class="order-ctrl">
+      <button class="mv" ${isFirst?'disabled':''} onclick="${onUp}" title="Move up">▲</button>
+      <button class="mv" ${isLast?'disabled':''} onclick="${onDown}" title="Move down">▼</button>
+    </span>
+  `;
+}
+
+function habitTaskRowHtml(dateKey, habit, compact, isFirst, isLast){
   const checked = !!(habitsData.checks[dateKey] && habitsData.checks[dateKey][habit.id]);
   const label = habit.type==='quit' ? `Stay clean: ${escapeHtml(habit.name)}` : escapeHtml(habit.name);
+  const arrows = orderArrowsHtml(
+    `moveHabit('${dateKey}', '${habit.id}', -1)`,
+    `moveHabit('${dateKey}', '${habit.id}', 1)`,
+    isFirst, isLast
+  );
   return `
     <div class="task habit-task ${habit.type==='quit'?'quit-type':''} ${checked?'done':''}">
       <input type="checkbox" ${checked?'checked':''} onchange="toggleHabit('${dateKey}', '${habit.id}')">
       <span class="task-text">${label}</span>
       ${compact ? '' : '<span class="habit-tag">habit</span>'}
+      ${arrows}
     </div>
   `;
 }
@@ -830,15 +853,17 @@ function renderWeekView(){
     const counts = dayTaskCounts(k);
     const isToday = k === todayKey;
 
-    const habitRows = habitsForDate(k).map(h => habitTaskRowHtml(k, h, true)).join('');
-    const taskRows = orderedTasks(k).map(({t, idx}) => `
+    const dayHabits = habitsForDate(k);
+    const habitRows = dayHabits.map((h, hpos) => habitTaskRowHtml(k, h, true, hpos===0, hpos===dayHabits.length-1)).join('');
+    const dayTasks = day.tasks;
+    const taskRows = dayTasks.map((t, idx) => `
       <div class="task ${t.done ? 'done':''}">
         <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
         <div class="task-main">
           <span class="task-text">${escapeHtml(t.text)}</span>
           ${t.time ? `<span class="time-badge">${fmtTime(t.time)}</span>` : ''}
         </div>
-        <span class="prio-dot p${t.priority || 0}" title="${prioTitle(t.priority)}" onclick="cyclePriority('${k}', ${idx})"></span>
+        ${orderArrowsHtml(`moveTask('${k}', ${idx}, -1)`, `moveTask('${k}', ${idx}, 1)`, idx===0, idx===dayTasks.length-1)}
         <span class="del" onclick="deleteTask('${k}', ${idx})">✕</span>
       </div>
     `).join('');
@@ -894,31 +919,23 @@ function renderDayView(){
   let ringColor = pct === 100 && counts.total>0 ? 'var(--sage)' : 'var(--clay)';
   const ringBg = `conic-gradient(${ringColor} ${pct*3.6}deg, var(--highlight) 0deg)`;
 
-  const habitRows = habitsForDate(k).map(h => habitTaskRowHtml(k, h)).join('');
-  const sortMode = habitsData.sortMode || 'manual';
-  const canMove = sortMode === 'manual';
-  const taskList = orderedTasks(k);
-  const taskRows = taskList.map(({t, idx}, pos) => `
+  const dayHabits = habitsForDate(k);
+  const habitRows = dayHabits.map((h, hpos) => habitTaskRowHtml(k, h, false, hpos===0, hpos===dayHabits.length-1)).join('');
+  const dayTasks = day.tasks;
+  const taskRows = dayTasks.map((t, idx) => `
     <div class="task detailed ${t.done ? 'done':''}">
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
       <div class="task-main">
         <span class="task-text">${escapeHtml(t.text)}</span>
         <div class="task-controls">
           <input type="time" value="${t.time || ''}" title="Time (optional)" onchange="setTaskField('${k}', ${idx}, 'time', this.value)">
-          <select title="Priority" onchange="setTaskField('${k}', ${idx}, 'priority', this.value)">
-            <option value="0" ${!t.priority ? 'selected' : ''}>No priority</option>
-            <option value="1" ${t.priority === 1 ? 'selected' : ''}>Low</option>
-            <option value="2" ${t.priority === 2 ? 'selected' : ''}>Medium</option>
-            <option value="3" ${t.priority === 3 ? 'selected' : ''}>High</option>
-          </select>
-          ${canMove ? `<button class="mv" ${pos === 0 ? 'disabled' : ''} onclick="moveTask('${k}', ${idx}, -1)" title="Move up">▲</button><button class="mv" ${pos === taskList.length - 1 ? 'disabled' : ''} onclick="moveTask('${k}', ${idx}, 1)" title="Move down">▼</button>` : ''}
+          ${pushSupported ? `<button class="remind-toggle ${t.remind?'on':''}" ${t.time?'':'disabled'} onclick="toggleTaskRemind('${k}', ${idx})" title="${t.time ? (t.remind ? 'Reminder on — tap to turn off' : 'Tap to get a push reminder at this time') : 'Set a time first'}">🔔</button>` : ''}
+          ${orderArrowsHtml(`moveTask('${k}', ${idx}, -1)`, `moveTask('${k}', ${idx}, 1)`, idx===0, idx===dayTasks.length-1)}
         </div>
       </div>
       <span class="del" onclick="deleteTask('${k}', ${idx})">✕</span>
     </div>
   `).join('');
-  const sortNote = (!canMove && taskList.length > 1)
-    ? `<div class="sort-note">Sorted by ${sortMode} — switch to Manual to reorder by hand.</div>` : '';
   const tasksHtml = (habitRows + taskRows) || `<div style="color:var(--ink-soft); font-size:13px;">Nothing planned yet — add what you want to get done today.</div>`;
 
   let moodHtml = '';
@@ -941,16 +958,9 @@ function renderDayView(){
       </div>
       <div class="section-label">Today's tasks &amp; habits</div>
       <div class="day-view-tasks">${tasksHtml}</div>
-      ${sortNote}
       <div class="add-task day-add">
         <input type="text" placeholder="add a task" id="dayinput-${k}" onkeydown="if(event.key==='Enter'){addFromDayView('${k}');}">
         <input type="time" id="daytime-${k}" title="Time (optional)">
-        <select id="dayprio-${k}" title="Priority">
-          <option value="0">Priority</option>
-          <option value="1">Low</option>
-          <option value="2">Medium</option>
-          <option value="3">High</option>
-        </select>
         <button onclick="addFromDayView('${k}')">+</button>
       </div>
       <div class="day-view-mood">
@@ -991,7 +1001,7 @@ function renderHabitsView(){
       const streak = habitStreak(h.id);
       rows += `
         <tr>
-          <td class="name-col">${escapeHtml(h.name)}<span class="habit-type-tag">${h.type==='quit'?'(quitting)':'(building)'}</span><span class="del-habit" onclick="deleteHabit('${h.id}')">remove</span></td>
+          <td class="name-col">${escapeHtml(h.name)}<span class="habit-type-tag">${h.type==='quit'?'(quitting)':'(building)'}</span>${pushSupported ? `<input type="time" class="habit-remind" value="${h.reminderTime || ''}" title="Daily reminder time (optional) — fires if not checked off yet" onchange="setHabitReminder('${h.id}', this.value)">` : ''}<span class="del-habit" onclick="deleteHabit('${h.id}')">remove</span></td>
           ${cells}
           <td><span class="habit-streak">${streak>0 ? streak+'d' : ''}</span></td>
         </tr>
@@ -1055,6 +1065,7 @@ function renderApp(){
       ${userBarHtml()}
     </header>
     ${errorBannerHtml()}
+    ${pushBarHtml()}
     ${renderTabs()}
     ${body}
     <div class="footer-note">${persistOk
@@ -1228,6 +1239,8 @@ async function logout(){
   currentView = 'week';
   lastError = null;
   authMessage = null;
+  stickyNote = '';
+  pushSubscribed = false;
   render();
 }
 
@@ -1259,6 +1272,99 @@ async function startApp(){
   await loadHabitsGlobal();
   await loadWeek();
   await loadStickyNote();
+  await checkPushStatus();
+}
+
+// ---- push notifications ----
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+async function checkPushStatus(){
+  if(!pushSupported) return;
+  try{
+    const reg = await navigator.serviceWorker.register('sw.js');
+    const sub = await reg.pushManager.getSubscription();
+    pushSubscribed = !!sub;
+  }catch(e){
+    console.error('[Steady] Service worker check failed:', e);
+    pushSubscribed = false;
+  }
+  render();
+}
+async function enablePush(){
+  if(!pushSupported || pushBusy) return;
+  pushBusy = true;
+  render();
+  try{
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){
+      lastError = 'Notifications were blocked. Allow them for this site in your browser settings and try again.';
+      pushBusy = false;
+      render();
+      return;
+    }
+    const reg = await navigator.serviceWorker.register('sw.js');
+    await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const raw = sub.toJSON();
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const { error } = await sb.from('push_subscriptions').upsert({
+      user_id: currentUser.id,
+      endpoint: raw.endpoint,
+      p256dh: raw.keys.p256dh,
+      auth: raw.keys.auth,
+      timezone
+    }, { onConflict: 'endpoint' });
+    if(error) throw error;
+    pushSubscribed = true;
+    lastError = null;
+  }catch(e){
+    console.error('[Steady] Enabling reminders failed:', e);
+    reportError('Enabling reminders', e);
+  }
+  pushBusy = false;
+  render();
+}
+async function disablePush(){
+  if(!pushSupported || pushBusy) return;
+  pushBusy = true;
+  render();
+  try{
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    if(sub){
+      await sb.from('push_subscriptions').delete().eq('endpoint', sub.endpoint);
+      await sub.unsubscribe();
+    }
+    pushSubscribed = false;
+  }catch(e){
+    console.error('[Steady] Disabling reminders failed:', e);
+    reportError('Disabling reminders', e);
+  }
+  pushBusy = false;
+  render();
+}
+function pushBarHtml(){
+  if(!pushSupported){
+    return `<div class="push-bar"><span class="push-dot"></span>Reminders aren't available in this browser, or the app isn't set up for them yet.</div>`;
+  }
+  if(pushSubscribed){
+    return `<div class="push-bar"><span class="push-dot on"></span>Reminders are on for this device.
+      <button onclick="disablePush()" ${pushBusy?'disabled':''}>${pushBusy ? 'Working…' : 'Turn off'}</button></div>`;
+  }
+  return `<div class="push-bar"><span class="push-dot"></span>Get a push notification when a task or habit's reminder time comes up — set times with the 🔔 in the Day tab or next to a habit.
+    <button onclick="enablePush()" ${pushBusy?'disabled':''}>${pushBusy ? 'Working…' : 'Turn on reminders'}</button></div>`;
 }
 
 async function loadStickyNote(){
