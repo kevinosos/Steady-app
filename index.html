@@ -192,6 +192,13 @@
   .mv:disabled{ opacity:.3; cursor:default; }
   .task.detailed .order-ctrl{ flex-direction:row; }
   .task.detailed .mv{ width:28px; height:26px; font-size:11px; }
+  .drag-handle{
+    flex:0 0 auto; width:18px; text-align:center; color:var(--ink-soft);
+    cursor:grab; touch-action:none; font-size:13px; line-height:1; user-select:none;
+    padding:4px 0;
+  }
+  .drag-handle:active{ cursor:grabbing; }
+  .task.dragging{ opacity:.55; background:var(--highlight); border-radius:8px; }
   .add-task.day-add{ max-width:420px; margin-top:12px; flex-wrap:wrap; gap:6px; }
   .add-task.day-add input[type=text]{ flex:1 1 180px; padding:8px 10px; font-size:13px; }
   .add-task.day-add input[type=time]{ flex:0 0 auto; padding:7px 8px; }
@@ -646,6 +653,83 @@ function moveHabit(dateKey, habitId, delta){
   [habitsData.habits[ai], habitsData.habits[bi]] = [habitsData.habits[bi], habitsData.habits[ai]];
   saveHabits();
 }
+// Apply a full new order at once (from a finished drag), rather than one swap at a time.
+// Both bail out and change nothing if the id set doesn't match exactly — better to no-op
+// than to silently drop or duplicate a task.
+function reorderTasks(dateKey, orderedIds){
+  const arr = weekData[dateKey] && weekData[dateKey].tasks;
+  if(!arr) return;
+  const byId = new Map(arr.map(t => [t.id, t]));
+  const newArr = orderedIds.map(id => byId.get(id)).filter(Boolean);
+  if(newArr.length !== arr.length) return;
+  weekData[dateKey].tasks = newArr;
+  saveWeek();
+}
+// Habits are one shared list; this rewrites just the visible-on-this-date slice's order
+// while leaving any not-yet-started habit's position untouched.
+function reorderHabits(dateKey, orderedVisibleIds){
+  const visible = habitsForDate(dateKey);
+  if(orderedVisibleIds.length !== visible.length) return;
+  const visibleIdSet = new Set(visible.map(h => h.id));
+  const byId = new Map(habitsData.habits.map(h => [h.id, h]));
+  let vi = 0;
+  const newFull = habitsData.habits.map(h => {
+    if(!visibleIdSet.has(h.id)) return h;
+    return byId.get(orderedVisibleIds[vi++]);
+  });
+  if(vi !== orderedVisibleIds.length || newFull.some(x => !x)) return;
+  habitsData.habits = newFull;
+  saveHabits();
+}
+
+// ---- drag to reorder (mouse + touch, via Pointer Events) ----
+// Moves the row in the DOM directly while dragging, and only writes to the
+// data model once on drop — re-rendering mid-drag would destroy the element
+// that has the pointer capture and silently kill the gesture.
+let dragInfo = null;
+function dragHandlePointerDown(e, type, dateKey){
+  if(e.pointerType === 'mouse' && e.button !== 0) return;
+  const row = e.currentTarget.closest('.task');
+  if(!row) return;
+  const container = row.parentElement;
+  const selector = `.task[data-row-type="${type}"][data-row-date="${dateKey}"]`;
+  if(container.querySelectorAll(selector).length < 2) return; // nothing to reorder against
+  e.preventDefault();
+  dragInfo = { type, dateKey, container, selector, row, pointerId: e.pointerId };
+  try{ row.setPointerCapture(e.pointerId); }catch(err){}
+  row.classList.add('dragging');
+  document.addEventListener('pointermove', onDragPointerMove);
+  document.addEventListener('pointerup', onDragPointerEnd);
+  document.addEventListener('pointercancel', onDragPointerEnd);
+}
+function onDragPointerMove(e){
+  if(!dragInfo) return;
+  const { container, selector, row } = dragInfo;
+  const y = e.clientY;
+  const siblings = Array.from(container.querySelectorAll(selector)).filter(el => el !== row);
+  for(const sib of siblings){
+    const r = sib.getBoundingClientRect();
+    if(y < r.top + r.height / 2){
+      container.insertBefore(row, sib);
+      return;
+    }
+  }
+  container.appendChild(row);
+}
+function onDragPointerEnd(e){
+  if(!dragInfo) return;
+  const { type, dateKey, container, selector, row, pointerId } = dragInfo;
+  try{ row.releasePointerCapture(pointerId); }catch(err){}
+  row.classList.remove('dragging');
+  document.removeEventListener('pointermove', onDragPointerMove);
+  document.removeEventListener('pointerup', onDragPointerEnd);
+  document.removeEventListener('pointercancel', onDragPointerEnd);
+  const orderedIds = Array.from(container.querySelectorAll(selector)).map(el => el.getAttribute('data-row-id'));
+  dragInfo = null;
+  if(type === 'task') reorderTasks(dateKey, orderedIds);
+  else reorderHabits(dateKey, orderedIds);
+}
+
 function fmtTime(hhmm){
   const [h, m] = hhmm.split(':').map(Number);
   return new Date(2000, 0, 1, h, m).toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit' });
@@ -825,13 +909,15 @@ function orderArrowsHtml(onUp, onDown, isFirst, isLast){
 function habitTaskRowHtml(dateKey, habit, compact, isFirst, isLast){
   const checked = !!(habitsData.checks[dateKey] && habitsData.checks[dateKey][habit.id]);
   const label = habit.type==='quit' ? `Stay clean: ${escapeHtml(habit.name)}` : escapeHtml(habit.name);
-  const arrows = orderArrowsHtml(
+  // Arrows stay in the roomier Day tab; the drag handle alone covers the narrow Week cards.
+  const arrows = compact ? '' : orderArrowsHtml(
     `moveHabit('${dateKey}', '${habit.id}', -1)`,
     `moveHabit('${dateKey}', '${habit.id}', 1)`,
     isFirst, isLast
   );
   return `
-    <div class="task habit-task ${habit.type==='quit'?'quit-type':''} ${checked?'done':''}">
+    <div class="task habit-task ${habit.type==='quit'?'quit-type':''} ${checked?'done':''}" data-row-type="habit" data-row-date="${dateKey}" data-row-id="${habit.id}">
+      <span class="drag-handle" onpointerdown="dragHandlePointerDown(event, 'habit', '${dateKey}')" title="Drag to reorder">⠿</span>
       <input type="checkbox" ${checked?'checked':''} onchange="toggleHabit('${dateKey}', '${habit.id}')">
       <span class="task-text">${label}</span>
       ${compact ? '' : '<span class="habit-tag">habit</span>'}
@@ -857,13 +943,13 @@ function renderWeekView(){
     const habitRows = dayHabits.map((h, hpos) => habitTaskRowHtml(k, h, true, hpos===0, hpos===dayHabits.length-1)).join('');
     const dayTasks = day.tasks;
     const taskRows = dayTasks.map((t, idx) => `
-      <div class="task ${t.done ? 'done':''}">
+      <div class="task ${t.done ? 'done':''}" data-row-type="task" data-row-date="${k}" data-row-id="${t.id}">
+        <span class="drag-handle" onpointerdown="dragHandlePointerDown(event, 'task', '${k}')" title="Drag to reorder">⠿</span>
         <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
         <div class="task-main">
           <span class="task-text">${escapeHtml(t.text)}</span>
           ${t.time ? `<span class="time-badge">${fmtTime(t.time)}</span>` : ''}
         </div>
-        ${orderArrowsHtml(`moveTask('${k}', ${idx}, -1)`, `moveTask('${k}', ${idx}, 1)`, idx===0, idx===dayTasks.length-1)}
         <span class="del" onclick="deleteTask('${k}', ${idx})">✕</span>
       </div>
     `).join('');
@@ -923,7 +1009,8 @@ function renderDayView(){
   const habitRows = dayHabits.map((h, hpos) => habitTaskRowHtml(k, h, false, hpos===0, hpos===dayHabits.length-1)).join('');
   const dayTasks = day.tasks;
   const taskRows = dayTasks.map((t, idx) => `
-    <div class="task detailed ${t.done ? 'done':''}">
+    <div class="task detailed ${t.done ? 'done':''}" data-row-type="task" data-row-date="${k}" data-row-id="${t.id}">
+      <span class="drag-handle" onpointerdown="dragHandlePointerDown(event, 'task', '${k}')" title="Drag to reorder">⠿</span>
       <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${k}', ${idx})">
       <div class="task-main">
         <span class="task-text">${escapeHtml(t.text)}</span>
