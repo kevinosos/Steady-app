@@ -1284,10 +1284,13 @@ function renderHabitsView(){
     });
   }
 
-  const weekHabits = habitsData.habits.filter(h=>!h.createdAt || h.createdAt<=todayKey);
-  const elapsed = Math.min(numDays, new Date().getDate());
-  const periodChecks = weekHabits.reduce((n,h)=>n+Array.from({length:elapsed},(_,i)=>habitsData.checks[fmt(new Date(y,m,i+1))]?.[h.id]?1:0).reduce((a,b)=>a+b,0),0);
-  const periodPossible = weekHabits.length * elapsed;
+  const weekDates = Array.from({length:7},(_,i)=>{
+    const d = new Date(currentMonday);
+    d.setDate(d.getDate()+i);
+    return fmt(d);
+  }).filter(key=>key<=todayKey);
+  const periodPossible = weekDates.reduce((n,key)=>n+habitsForDate(key).length,0);
+  const periodChecks = weekDates.reduce((n,key)=>n+habitsForDate(key).filter(h=>habitsData.checks[key] && habitsData.checks[key][h.id]).length,0);
   const fidelity = periodPossible ? Math.round(periodChecks/periodPossible*100) : 0;
   return `
     <div class="week-toolbar">
@@ -1299,7 +1302,7 @@ function renderHabitsView(){
     </div>
     <div class="fidelity-card">
       <div><span class="eyebrow">WEEKLY FIDELITY</span><div class="fidelity-number">${fidelity}%</div></div>
-      <div class="fidelity-copy"><b>${periodChecks} / ${periodPossible}</b><span>habit check-ins this month to date</span></div>
+      <div class="fidelity-copy"><b>${periodChecks} / ${periodPossible}</b><span>habit check-ins this week</span></div>
       <div class="fidelity-note">Every check-in is progress.</div>
     </div>
     <div class="habits-card">
