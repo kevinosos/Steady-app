@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Steady — planner</title>
+<title>Steady — daily rituals</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="brand-mark.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#4C6B52">
+<link rel="apple-touch-icon" href="brand-mark.png">
+<meta name="theme-color" content="#F8FAF5">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -440,6 +440,14 @@ table.habit-grid th.name-col,table.habit-grid td.name-col{font-family:'Plus Jaka
 .habit-streak,.habit-row-streak{color:var(--clay);font-size:10px;white-space:nowrap}.push-bar{padding:9px 12px;border-radius:12px;background:#fff;border:1px solid var(--line)}
 .footer-note{color:var(--ink-soft);font-size:10px}.sticky-toggle{background:var(--clay);width:48px;height:48px}.auth-wrap{box-shadow:0 8px 30px rgba(35,49,38,.07)}.auth-wrap h1{font-family:'Newsreader',serif}.auth-submit{background:var(--clay);font-family:'Plus Jakarta Sans',sans-serif;font-weight:700}
 @media(max-width:720px){.wrap,.wrap.wide{padding:20px 14px 78px}header{align-items:center;padding-bottom:12px}.brand-mark{width:42px;height:42px}h1{font-size:29px}.user-bar{font-size:10px;padding:8px 10px}.tabs{width:100%;justify-content:space-between;margin-bottom:20px}.tab{flex:1;text-align:center;padding:9px 8px}.overview{gap:15px;padding:17px;align-items:stretch}.overview .big{font-size:39px}.overview .bar-track{flex-basis:100%;order:2}.overview .streak{min-width:0;flex:1}.clean-streak-number{font-size:33px}.days{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.day{padding:10px;border-radius:13px}.task{font-size:10px}.week-label{font-size:20px}.section-heading{align-items:flex-start;flex-direction:column;gap:5px}.section-heading h2{font-size:23px}.ledger-card,.day-view-card,.habits-card{padding:16px;border-radius:16px}.day-view-head{align-items:flex-start;flex-direction:column}.day-view-title{font-size:25px}.fidelity-card{gap:10px;flex-wrap:wrap}.fidelity-note{margin-left:0;flex-basis:100%}.ring-row{gap:14px;padding:14px}.add-task.day-add{position:sticky;bottom:10px;z-index:20;background:#fff;padding:9px;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(35,49,38,.09)}}
+
+
+.days{grid-template-columns:repeat(7,minmax(145px,1fr));overflow-x:auto;padding-bottom:8px;scroll-snap-type:x proximity;overscroll-behavior-x:contain}
+.day{scroll-snap-align:start}
+.week-remaining{display:flex;flex-direction:column;gap:3px;padding:11px 14px;border:1px solid var(--line);border-radius:14px;background:#F8FAF5;color:var(--ink-soft);font-size:11px;white-space:nowrap}
+.week-remaining b{font:500 17px 'Newsreader',serif;color:var(--ink)}
+.habit-row-streak:empty{display:none}
+@media(max-width:720px){.days{grid-template-columns:repeat(7,minmax(145px,1fr));gap:9px}.day{padding:10px;border-radius:13px}.week-remaining{flex:1}}
 
 </style>
 </head>
