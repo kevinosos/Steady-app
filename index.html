@@ -333,6 +333,10 @@
   .habit-streak{ font-size:11px; color:var(--clay); font-weight:600; }
   th.today-col-head{ color:var(--clay); }
   .habits-empty{ color:var(--ink-soft); font-size:13px; padding:20px 0; }
+  .grid-scroll-hint{display:none;margin-top:10px;color:var(--ink-soft);font-size:11px;letter-spacing:.01em}
+  .habits-card::-webkit-scrollbar{height:7px}
+  .habits-card::-webkit-scrollbar-thumb{background:#D7DDD4;border-radius:99px}
+  .habits-card::-webkit-scrollbar-track{background:#F2F4F0;border-radius:99px}
 
   /* Celebration */
   .toast{
@@ -408,6 +412,12 @@ h1{font-family:'Newsreader',serif;color:var(--clay);font-size:34px;font-weight:5
 .overview .streak{background:#FBF7F5;border-color:#E9DCDD;border-radius:15px}
 .clean-streak-number{font-family:'Newsreader',serif;color:var(--clay);font-size:38px}.clean-streak-copy b{font-family:'Newsreader',serif;font-size:16px}
 .week-toolbar{display:flex;justify-content:space-between;align-items:center;margin:4px 0 16px}
+.grid-scroll-hint{display:block}
+.day-view-card{max-width:920px;margin-inline:auto}
+.ring-row{max-width:720px}
+.section-heading{max-width:800px}
+.day-view-tasks{max-width:800px}
+@media(max-width:640px){.day-view-card{padding:22px 18px}}
 .eyebrow{display:block;color:var(--olive);font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;margin-bottom:5px}
 .week-label{font-family:'Newsreader',serif;font-size:23px;min-width:0;text-align:left;color:var(--ink)}
 .week-nav{gap:8px}.week-nav button{background:#fff;border-color:var(--line);width:38px;height:38px;color:var(--clay);font-size:17px}.week-nav button:hover{background:var(--clay-soft)}
@@ -1096,7 +1106,7 @@ function renderDayView(){
           ${counts.total===0 ? 'Add a few things below to get started.' : (pct===100 ? 'Everything on the list is done.' : `${counts.total-counts.done} left to go.`)}
         </div>
       </div>
-      <div class="section-heading"><div><span class="eyebrow">TODAY’S RITUALS</span><h2>Today’s Rituals</h2></div><span class="section-caption">${counts.done} of ${counts.total} complete · ${counts.total-counts.done} left</span></div>
+      <div class="section-heading"><div><span class="eyebrow">YOUR DAILY PRACTICE</span><h2>Today’s Rituals</h2></div><span class="section-caption">${counts.done} of ${counts.total} complete · ${counts.total-counts.done} left</span></div>
       <div class="day-view-tasks">${tasksHtml}</div>
       <div class="add-task day-add">
         <input type="text" placeholder="add a task" id="dayinput-${k}" onkeydown="if(event.key==='Enter'){addFromDayView('${k}');}">
@@ -1177,6 +1187,7 @@ function renderHabitsView(){
         <thead><tr><th class="name-col">Habit</th>${headCells}<th class="habit-streak">Current streak</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
+      <div class="grid-scroll-hint">Swipe or scroll to see the full month and current streaks <span aria-hidden="true">→</span></div>
     </div>
   `;
 }
