@@ -834,11 +834,18 @@ function shiftMonth(delta){
   render();
 }
 function habitStreak(habitId){
+  const habit = habitsData.habits.find(h=>h.id===habitId);
+  const d = new Date();
+  const todayKey = fmt(d);
+  // An unchecked current day is still in progress, so keep yesterday's streak alive.
+  if(!(habitsData.checks[todayKey] && habitsData.checks[todayKey][habitId])){
+    d.setDate(d.getDate()-1);
+  }
   let streak = 0;
-  let d = new Date();
   while(true){
-    const k = fmt(d);
-    if(habitsData.checks[k] && habitsData.checks[k][habitId]){
+    const key = fmt(d);
+    if(habit && habit.createdAt && key < habit.createdAt) break;
+    if(habitsData.checks[key] && habitsData.checks[key][habitId]){
       streak++;
       d.setDate(d.getDate()-1);
     } else break;
@@ -1090,7 +1097,7 @@ function renderHabitsView(){
         <tr>
           <td class="name-col">${escapeHtml(h.name)}<span class="habit-type-tag">${h.type==='quit'?'(quitting)':'(building)'}</span>${pushSupported ? `<input type="time" class="habit-remind" value="${h.reminderTime || ''}" title="Daily reminder time (optional) — fires if not checked off yet" onchange="setHabitReminder('${h.id}', this.value)">` : ''}<span class="del-habit" onclick="deleteHabit('${h.id}')">remove</span></td>
           ${cells}
-          <td><span class="habit-streak">${streak>0 ? streak+'d' : ''}</span></td>
+          <td><span class="habit-streak">${streak>0 ? streak+' day'+(streak===1?'':'s') : '—'}</span></td>
         </tr>
       `;
     });
@@ -1112,7 +1119,7 @@ function renderHabitsView(){
         <button onclick="const el=document.getElementById('new-habit-input'); const t=document.getElementById('new-habit-type'); addHabit(el.value, t.value); el.value='';">Add habit</button>
       </div>
       <table class="habit-grid">
-        <thead><tr><th class="name-col"></th>${headCells}<th></th></tr></thead>
+        <thead><tr><th class="name-col">Habit</th>${headCells}<th class="habit-streak">Current streak</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
