@@ -1043,7 +1043,7 @@ function renderWeekView(){
   }
   return '<div class="week-toolbar"><div><span class="eyebrow">WEEKLY RHYTHM</span><div class="week-label">'+weekLabel(currentMonday)+'</div></div><div class="week-nav"><button aria-label="Previous week" onclick="shiftWeek(-1)">←</button><button aria-label="Next week" onclick="shiftWeek(1)">→</button></div></div>'+
     '<div class="overview"><div><div class="big">'+stats.pct+'%</div><div class="big-label">of this week’s tasks and habits done</div></div><div class="bar-track"><div class="bar-fill" style="width:'+stats.pct+'%"></div></div>'+
-    '<div class="streak"><div class="clean-streak-number">'+streak+'</div><div class="clean-streak-copy"><b>'+streak+' days clean</b><span>Across your quit habits</span></div></div><div class="week-remaining"><b>'+daysLeft+' days left</b><span>in this week</span></div></div>'+
+    '<div class="streak"><div class="clean-streak-number">'+streak+'</div><div class="clean-streak-copy"><b>'+streak+' days clean</b><span>Across your quit habits</span></div></div><div class="week-remaining"><b>'+daysLeft+' '+(daysLeft===1?'day':'days')+' left</b><span>in this week</span></div></div>'+
     '<div class="section-heading weekly-section-title"><div><span class="eyebrow">DAILY REFLECTIONS</span><h2>One day at a time</h2></div><span class="section-caption">Small, steady steps through the week</span></div><div class="days">'+daysHtml+'</div>'+renderAdherenceMatrix();
 }
 
