@@ -1021,7 +1021,7 @@ function renderAdherenceMatrix(){
 }
 
 function renderWeekView(){
-  const stats=weekStats(), streak=cleanStreak(), today=new Date(), todayKey=fmt(today), daysLeft=Math.max(0,6-today.getDay());
+  const stats=weekStats(), streak=cleanStreak(), today=new Date(), todayKey=fmt(today), todayMonday=getMonday(today), weekStart=fmt(currentMonday), daysLeft=weekStart===fmt(todayMonday)?6-today.getDay():(weekStart>fmt(todayMonday)?7:0);
   let daysHtml='';
   for(let i=0;i<7;i++){
     const d=new Date(currentMonday);d.setDate(d.getDate()+i);
@@ -1119,7 +1119,7 @@ function renderFidelityCard(){
   const pct=possible?Math.round(checks/possible*100):0;
   return '<div class="fidelity-card"><div><span class="eyebrow">WEEKLY FIDELITY</span><div class="fidelity-number">'+pct+'%</div></div>'+
     '<div class="fidelity-copy"><b>'+checks+' / '+possible+'</b><span>rituals fulfilled this cycle</span></div>'+
-    '<div class="fidelity-note">'+(possible-checks)+' deliberate pause'+(possible-checks===1?'':'s')+' · every check-in is progress</div></div>';
+    '<div class="fidelity-note">'+(possible-checks)+' remaining '+(possible-checks===1?'ritual':'rituals')+' · every check-in is progress</div></div>';
 }
 
 function renderHabitsView(){
