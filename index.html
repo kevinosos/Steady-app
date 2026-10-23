@@ -523,6 +523,7 @@ table.habit-grid th{font-size:9px;letter-spacing:.04em;}
   .fidelity-card{gap:10px;flex-wrap:wrap;}
   .fidelity-note{margin-left:0;flex-basis:100%;}
   .ring-row{gap:14px;padding:14px;}
+  .add-task.day-add{position:sticky;bottom:10px;z-index:20;background:#fff;padding:9px;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 20px rgba(35,49,38,.09);}
 }
 
 </style>
@@ -1171,7 +1172,7 @@ function renderWeekView(){
         <div class="big-label">of this week's tasks + habits done</div>
       </div>
       <div class="bar-track"><div class="bar-fill" style="width:${stats.pct}%"></div></div>
-      <div class="streak"><div class="clean-streak-number">${streak}</div><div class="clean-streak-copy"><b>${streak} days clean</b><span>Across your quit habits</span></div></div>
+      <div class="streak"><div class="clean-streak-number">${streak}</div><div class="clean-streak-copy"><b>Clean streak</b><span>Across your quit habits</span></div></div>
     </div>
     <div class="section-heading weekly-section-title">
       <div><span class="eyebrow">DAILY REFLECTIONS</span><h2>One day at a time</h2></div>
