@@ -1288,6 +1288,10 @@ async function submitAuth(){
     authMessage = {type:'error', text:'Enter both an email and a password.'};
     render(); return;
   }
+  if(authMode === 'signup' && password.length < 8){
+    authMessage = {type:'error', text:'Choose a password with at least 8 characters.'};
+    render(); return;
+  }
   if(!sb){
     authMessage = {type:'error', text:'This app is not connected to a database yet — the SUPABASE_URL and SUPABASE_ANON_KEY near the top of the file still need to be filled in.'};
     render(); return;
