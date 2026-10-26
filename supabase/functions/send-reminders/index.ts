@@ -8,7 +8,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  (service role — server-side only, never shipped to the browser)
 //   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (e.g. "mailto:you@example.com")
 
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "npm:@supabase/supabase-js@2.118.0";
 import webpush from "npm:web-push@3.6.7";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -88,14 +88,39 @@ async function pushToUser(subs: any[], payload: Record<string, unknown>): Promis
       if (err?.statusCode === 404 || err?.statusCode === 410) {
         await sb.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
       } else {
-        console.error("push failed for", sub.endpoint, err?.statusCode, err?.body || err?.message);
+        console.error("push delivery failed", { statusCode: Number(err?.statusCode) || 0 });
       }
     }
   }
   return deliveredCount;
 }
 
-Deno.serve(async () => {
+// Supabase's gateway validates the JWT signature because verify_jwt=true in config.toml.
+function isServiceRoleJwt(request: Request): boolean {
+  const authorization = request.headers.get("authorization") || "";
+  const match = authorization.match(/^Bearer\s+([A-Za-z0-9._-]+)$/i);
+  if (!match) return false;
+  const parts = match[1].split(".");
+  if (parts.length !== 3) return false;
+
+  try {
+    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")));
+    return claims.role === "service_role" &&
+      typeof claims.exp === "number" && claims.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+Deno.serve(async (request: Request) => {
+  if (request.method !== "POST") {
+    return new Response("method not allowed", { status: 405, headers: { "Allow": "POST" } });
+  }
+  if (!isServiceRoleJwt(request)) {
+    return new Response("unauthorized", { status: 401 });
+  }
+
   const now = new Date();
   const { data: subs, error } = await sb.from("push_subscriptions").select("*");
   if (error) return new Response("subscription query failed: " + error.message, { status: 500 });

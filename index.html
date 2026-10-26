@@ -9,7 +9,7 @@
 <meta name="theme-color" content="#4C6B52">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0"></script>
 <style>
   :root{
     --bg: #FAF7F2;
@@ -430,7 +430,7 @@ function escapeHtml(str){
 
 // ====== SUPABASE CONFIG — replace these two lines with your own project's values ======
 const SUPABASE_URL = 'https://zjjkltyyawkozcgluuyb.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamtsdHl5YXdrb3pjZ2x1dXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTg5MjMsImV4cCI6MjEwNDQzNDkyM30.PMhXyHM91kdw5dGytjvSWTSPcrkd6PS1h23Uv22G7No';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpqamtsdHl5YXdrb3pjZ2x1dXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4NTg5MjMsImV4cCI6MjEwNDQzNDkyM30.PMhXyHM91kdw5dGytjvSWTSPcrkd6PS1h23Uv22G7No'; // gitleaks:allow -- Supabase anon/publishable key; database access is restricted by RLS.
 // ====== VAPID public key — paste the value send-reminders/DEPLOY.md gave you. Safe to be public. ======
 const VAPID_PUBLIC_KEY = 'BJ7h4JACUoOjU6-UzJdZP5q0oUCIidyZjpeDU0E9JE-j-uJfQyFKxoZKW-Bh3UmO3nM4rGA9HcMNBx1uq3zCI3Y';
 // ========================================================================================
@@ -1191,7 +1191,7 @@ function renderAuth(){
   const passwordField = isForgot ? '' : `
       <div class="auth-field">
         <label>Password</label>
-        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 6 characters' : ''}" onkeydown="if(event.key==='Enter'){submitAuth();}">
+        <input type="password" id="auth-password" placeholder="${isSignup ? 'At least 8 characters' : ''}" onkeydown="if(event.key==='Enter'){submitAuth();}">
       </div>`;
   const forgotLink = (!isSignup && !isForgot) ? `<div class="auth-forgot"><a onclick="switchAuthMode('forgot')">Forgot password?</a></div>` : '';
   const btnLabel = isForgot ? 'Send reset link' : (isSignup ? 'Sign up' : 'Sign in');
@@ -1228,7 +1228,7 @@ function renderRecovery(){
       ${authMessage ? `<div class="auth-msg ${authMessage.type}">${escapeHtml(authMessage.text)}</div>` : ''}
       <div class="auth-field">
         <label>New password</label>
-        <input type="password" id="new-password" placeholder="At least 6 characters" onkeydown="if(event.key==='Enter'){document.getElementById('new-password2').focus();}">
+        <input type="password" id="new-password" placeholder="At least 8 characters" onkeydown="if(event.key==='Enter'){document.getElementById('new-password2').focus();}">
       </div>
       <div class="auth-field">
         <label>Confirm new password</label>
@@ -1242,8 +1242,8 @@ function renderRecovery(){
 async function submitNewPassword(){
   const pw = document.getElementById('new-password').value;
   const pw2 = document.getElementById('new-password2').value;
-  if(pw.length < 6){
-    authMessage = {type:'error', text:'Your password needs at least 6 characters.'};
+  if(pw.length < 8){
+    authMessage = {type:'error', text:'Your password needs at least 8 characters.'};
     render(); return;
   }
   if(pw !== pw2){
@@ -1286,6 +1286,10 @@ async function submitAuth(){
     }
   } else if(!email || !password){
     authMessage = {type:'error', text:'Enter both an email and a password.'};
+    render(); return;
+  }
+  if(authMode === 'signup' && password.length < 8){
+    authMessage = {type:'error', text:'Choose a password with at least 8 characters.'};
     render(); return;
   }
   if(!sb){
@@ -1371,7 +1375,6 @@ function userBarHtml(){
 async function startApp(){
   authMessage = null;
   lastError = null;
-  console.log('[Steady] signed in as', currentUser && currentUser.email);
   await loadHabitsGlobal();
   await loadWeek();
   await loadStickyNote();
@@ -1510,7 +1513,6 @@ async function init(){
 
   // Listen first so we can see exactly why a session ends.
   sb.auth.onAuthStateChange((event, session) => {
-    console.log('[Steady] auth event:', event, session ? 'session present' : 'no session');
     if(event === 'PASSWORD_RECOVERY'){
       recoveryMode = true;
       render();
@@ -1542,7 +1544,6 @@ async function init(){
   try{
     const { data, error } = await sb.auth.getSession();
     if(error) throw error;
-    console.log('[Steady] restored session:', data.session ? 'yes' : 'none');
     if(data.session){
       currentUser = data.session.user;
       await startApp();
