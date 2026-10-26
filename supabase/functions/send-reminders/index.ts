@@ -88,7 +88,7 @@ async function pushToUser(subs: any[], payload: Record<string, unknown>): Promis
       if (err?.statusCode === 404 || err?.statusCode === 410) {
         await sb.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
       } else {
-        console.error("push failed for", sub.endpoint, err?.statusCode, err?.body || err?.message);
+        console.error("push delivery failed", { statusCode: Number(err?.statusCode) || 0 });
       }
     }
   }
