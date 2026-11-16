@@ -12,8 +12,8 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Steady';
   const options = {
     body: data.body || '',
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
+    icon: 'icon-192.png?v=20261116',
+    badge: 'icon-192.png?v=20261116',
     tag: data.tag || 'steady-reminder',
     renotify: true,
     data: { url: data.url || './' }
